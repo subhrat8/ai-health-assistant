@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Smart Health Monitoring System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container fade-in">
+
+    <div class="logo">
+        <svg width="60" height="60" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="#1f4fd8"/>
+            <path d="M50 20 L50 80" stroke="white" stroke-width="8"/>
+            <path d="M20 50 L80 50" stroke="white" stroke-width="8"/>
+        </svg>
+        <span>AI HealthAssist</span>
+    </div>
+
+    <form method="POST" class="card slide-up">
+        <label>Language</label>
+        <select id="languageSelect" name="language">
+            <option value="en-US" {% if selected_language=="en-US" %}selected{% endif %}>English</option>
+            <option value="hi-IN" {% if selected_language=="hi-IN" %}selected{% endif %}>Hindi</option>
+            <option value="te-IN" {% if selected_language=="te-IN" %}selected{% endif %}>Telugu</option>
+            <option value="ta-IN" {% if selected_language=="ta-IN" %}selected{% endif %}>Tamil</option>
+        </select>
+
+        <label>City</label>
+        <input type="text" name="city" required>
+
+        <label>Symptoms</label>
+        <div style="display:flex; gap:10px;">
+            <textarea id="symptoms" name="symptoms" required></textarea>
+            <button type="button" id="micBtn">🎤</button>
+        </div>
+        <small id="micStatus" class="muted"></small>
+
+        <button type="submit">Analyze</button>
+    </form>
+
+    {% if health %}
+    <div class="card">
+        <h2>Assistant</h2>
+        <p id="assistantText">
+            {{ health }} Doctor: {{ doctor }}. {{ reason }}
+        </p>
+    </div>
+    {% endif %}
+
+    {% if hospitals %}
+    <div class="card">
+        <h2>Nearby Hospitals</h2>
+        <ul>
+            {% for h in hospitals %}
+            <li>
+                {{ h.name }}
+                {% if h.distance != "—" %}
+                    <span class="distance">{{ h.distance }} km</span>
+                {% endif %}
+                <a href="{{ h.map }}" target="_blank">Map</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+const micBtn = document.getElementById("micBtn");
+const micStatus = document.getElementById("micStatus");
+const symptomsBox = document.getElementById("symptoms");
+const languageSelect = document.getElementById("languageSelect");
+
+/* Speech to Text */
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+
+    micBtn.onclick = () => {
+        recognition.lang = languageSelect.value;
+        recognition.start();
+        micStatus.textContent = "Listening...";
+    };
+
+    recognition.onresult = e => {
+        symptomsBox.value = e.results[0][0].transcript;
+        micStatus.textContent = "Voice captured.";
+    };
+
+    recognition.onend = () => setTimeout(()=>micStatus.textContent="",1500);
+}
+
+/* Auto Speak */
+window.onload = () => {
+    const el = document.getElementById("assistantText");
+    if (!el) return;
+
+    const lang = "{{ selected_language }}";
+    const sentences = el.innerText.split(". ");
+    let i = 0;
+
+    function speakNext() {
+        if (i >= sentences.length) return;
+        const u = new SpeechSynthesisUtterance(sentences[i]);
+        u.lang = lang;
+        u.rate = 0.95;
+        u.onend = () => { i++; setTimeout(speakNext, 400); };
+        speechSynthesis.speak(u);
+    }
+
+    speechSynthesis.cancel();
+    speakNext();
+};
+</script>
+
+</body>
+</html>
