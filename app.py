@@ -3,14 +3,17 @@ import math
 import requests
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 
+# -------------------- SETUP --------------------
 load_dotenv()
 
 app = Flask(__name__)
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# ---------- LANGUAGE HELPER ----------
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("models/gemini-flash-lite-latest")
+
+# -------------------- LANGUAGE HELPER --------------------
 def language_name(lang_code):
     return {
         "en-US": "English",
@@ -20,7 +23,7 @@ def language_name(lang_code):
     }.get(lang_code, "English")
 
 
-# ---------- LOCATION ----------
+# -------------------- LOCATION --------------------
 def get_coordinates(city):
     url = "https://nominatim.openstreetmap.org/search"
     headers = {"User-Agent": "ai-health-app"}
@@ -64,13 +67,18 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=15
+        )
         data = res.json()
 
         for item in data.get("elements", []):
             name = item.get("tags", {}).get("name")
             h_lat = item.get("lat")
             h_lon = item.get("lon")
+
             if name and h_lat and h_lon:
                 hospitals.append({
                     "name": name,
@@ -82,19 +90,15 @@ def get_nearby_hospitals(lat, lon):
 
     if len(hospitals) < 3:
         hospitals = [
-            {"name": "Government District Hospital", "distance": "—", "map": None},
-            {"name": "Community Health Centre", "distance": "—", "map": None},
-            {"name": "Primary Health Clinic", "distance": "—", "map": None}
+            {"name": "Government District Hospital", "distance": "—", "map": "https://www.google.com/maps/search/government+hospital"},
+            {"name": "Community Health Centre", "distance": "—", "map": "https://www.google.com/maps/search/community+health+centre"},
+            {"name": "Primary Health Clinic", "distance": "—", "map": "https://www.google.com/maps/search/primary+health+clinic"}
         ]
-
-    for h in hospitals:
-        if not h.get("map"):
-            h["map"] = f"https://www.google.com/maps/search/{h['name']}"
 
     return hospitals[:5]
 
 
-# ---------- MAIN ROUTE ----------
+# -------------------- MAIN ROUTE --------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     health = ""
@@ -107,9 +111,10 @@ def index():
     selected_language = "en-US"
 
     if request.method == "POST":
-        searched_city = request.form.get("city")
-        searched_symptoms = request.form.get("symptoms")
+        searched_city = request.form.get("city", "")
+        searched_symptoms = request.form.get("symptoms", "")
         selected_language = request.form.get("language", "en-US")
+
         lang_name = language_name(selected_language)
 
         try:
@@ -117,29 +122,26 @@ def index():
             Patient symptoms: {searched_symptoms}
 
             Reply ONLY in {lang_name}.
-            Do not mix languages.
+            Do not use symbols, stars, or hashtags.
 
             Explain briefly:
-            possible cause,
-            basic home care,
-            when to see a doctor.
+            Possible cause
+            Basic home care
+            When to see a doctor
 
-            Then give:
+            End with:
             Doctor: <specialist>
             Reason: <one line>
             """
 
-            ai_resp = client.models.generate_content(
-                model="models/gemini-flash-lite-latest",
-                contents=ai_prompt
-            )
-
+            ai_resp = model.generate_content(ai_prompt)
             ai_text = ai_resp.text.replace("*", "").replace("#", "")
         except:
             ai_text = (
-                f"AI service is temporarily unavailable. Please try again later.\n"
-                f"Doctor: General Physician\n"
-                f"Reason: Initial consultation is recommended."
+                "AI service is temporarily unavailable. "
+                "Please consult a doctor if symptoms persist.\n"
+                "Doctor: General Physician\n"
+                "Reason: Initial medical consultation is recommended."
             )
 
         for line in ai_text.splitlines():
@@ -166,5 +168,7 @@ def index():
     )
 
 
+# -------------------- RUN LOCAL --------------------
 if __name__ == "__main__":
     app.run(debug=True)
+
