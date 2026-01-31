@@ -3,25 +3,43 @@ import math
 import requests
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
-import google.generativeai as genai
 
 # ---------------- LOAD ENV ----------------
 load_dotenv()
 
-# ---------------- FLASK APP ----------------
 app = Flask(__name__)
 
-# ---------------- GEMINI ----------------
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+HF_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 # ---------------- LANGUAGE ----------------
 def language_name(code):
     return {
-        "en-US": "English",
-        "hi-IN": "Hindi",
-        "te-IN": "Telugu",
-        "ta-IN": "Tamil"
-    }.get(code, "English")
+        "en-US": "en",
+        "hi-IN": "hi",
+        "te-IN": "te",
+        "ta-IN": "ta"
+    }.get(code, "en")
+
+
+# ---------------- TRANSLATION ----------------
+def translate(text, source, target):
+    if source == target:
+        return text
+
+    url = "https://libretranslate.de/translate"
+
+    payload = {
+        "q": text,
+        "source": source,
+        "target": target,
+        "format": "text"
+    }
+
+    try:
+        res = requests.post(url, data=payload, timeout=10)
+        return res.json()["translatedText"]
+    except:
+        return text
 
 
 # ---------------- LOCATION ----------------
@@ -36,11 +54,10 @@ def get_coordinates(city):
 
         if data:
             return float(data[0]["lat"]), float(data[0]["lon"]), data[0]["display_name"]
-
     except:
         pass
 
-    return 20.5937, 78.9629, "India (approximate)"
+    return 20.5937, 78.9629, "India"
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -70,11 +87,7 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
+        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = res.json()
 
         for item in data.get("elements", []):
@@ -91,17 +104,10 @@ def get_nearby_hospitals(lat, lon):
     except:
         pass
 
-    if not hospitals:
-        hospitals = [
-            {"name": "Government Hospital", "distance": "—", "map": "https://maps.google.com"},
-            {"name": "Community Health Centre", "distance": "—", "map": "https://maps.google.com"},
-        ]
-
     return hospitals[:5]
 
 
-# ================= ROUTES =================
-
+# ---------------- ROUTES ----------------
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
@@ -114,45 +120,64 @@ def analyze():
     symptoms = request.form.get("symptoms")
     language = request.form.get("language", "en-US")
 
-    lang = language_name(language)
+    user_lang = language_name(language)
 
-    # ---------- AI ----------
+    symptoms_en = translate(symptoms, user_lang, "en")
+
+    prompt = f"""
+    Patient symptoms: {symptoms_en}
+
+    Explain briefly:
+    possible cause,
+    basic home care,
+    when to see a doctor.
+
+    Then give:
+    Doctor: <specialist>
+    Reason: <one line>
+    """
+
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}"
+    }
+
+    payload = {
+        "inputs": prompt
+    }
+
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        res = requests.post(
+            "https://api-inference.huggingface.co/models/google/flan-t5-large",
+            headers=headers,
+            json=payload,
+            timeout=60
+        )
 
-        prompt = f"""
-        Patient symptoms: {symptoms}
+        data = res.json()
 
-        Reply only in {lang}.
-        Explain briefly:
-        possible cause,
-        home care,
-        when to see a doctor.
+        if isinstance(data, dict) and "error" in data:
+            output = "AI is warming up. Please try again in a few seconds."
 
-        Then give:
-        Doctor: <specialist>
-        Reason: <one line>
-        """
+        elif isinstance(data, list):
+            output = data[0].get("generated_text", "")
 
-        response = model.generate_content(prompt)
-        ai_text = response.text.replace("*", "")
+        else:
+            output = ""
 
     except:
-        ai_text = (
-            "AI service temporarily unavailable.\n"
-            "Doctor: General Physician\n"
-            "Reason: Initial consultation recommended."
-        )
+        output = ""
+
+    output_final = translate(output, "en", user_lang)
 
     health = ""
     doctor = ""
     reason = ""
 
-    for line in ai_text.splitlines():
-        if line.lower().startswith("doctor:"):
-            doctor = line.replace("Doctor:", "").strip()
-        elif line.lower().startswith("reason:"):
-            reason = line.replace("Reason:", "").strip()
+    for line in output_final.splitlines():
+        if "doctor" in line.lower():
+            doctor = line.split(":")[-1].strip()
+        elif "reason" in line.lower():
+            reason = line.split(":")[-1].strip()
         else:
             health += line + " "
 
@@ -166,12 +191,9 @@ def analyze():
         reason=reason,
         hospitals=hospitals,
         searched_city=city,
-        searched_symptoms=symptoms,
-        location_used=location_used
+        searched_symptoms=symptoms
     )
 
 
-# ---------------- LOCAL RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
-
