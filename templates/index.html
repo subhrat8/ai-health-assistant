@@ -1,143 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>AI Health Assistant</title>
-
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #f5f8fc;
-            margin: 0;
-            padding: 0;
+            font-family: Arial;
+            background: #f4f7fb;
         }
-
-        header {
-            background: #2563eb;
-            color: white;
-            padding: 20px;
-            font-size: 22px;
-            font-weight: bold;
-        }
-
-        .container {
-            width: 85%;
-            margin: auto;
-            padding: 30px;
-        }
-
-        .card {
+        .box {
+            width: 60%;
+            margin: 80px auto;
             background: white;
-            padding: 25px;
+            padding: 30px;
             border-radius: 10px;
-            margin-bottom: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         }
-
-        label {
-            font-weight: bold;
-        }
-
-        input, textarea, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            margin-bottom: 15px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
-
         button {
             background: #2563eb;
             color: white;
-            padding: 12px 22px;
+            padding: 10px 25px;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #1e40af;
-        }
-
-        .hospital {
-            margin-bottom: 8px;
-        }
-
-        a {
-            text-decoration: none;
-            color: #2563eb;
-        }
-
-        .tag {
-            background: #eef2ff;
-            padding: 6px 10px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-bottom: 10px;
         }
     </style>
 </head>
 
 <body>
 
-<header>
-    🩺 AI Health Assistant
-</header>
+<div class="box">
+    <h2>🩺 AI Health Assistant</h2>
 
-<div class="container">
+    <form action="/analyze" method="post">
 
-    <div class="card">
-        <form method="POST">
+        <label>Language</label><br>
+        <select name="language">
+            <option value="en-US">English</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="te-IN">Telugu</option>
+            <option value="ta-IN">Tamil</option>
+        </select><br><br>
 
-            <label>Language</label>
-            <select name="language">
-                <option value="en-US" {% if selected_language=="en-US" %}selected{% endif %}>English</option>
-                <option value="hi-IN" {% if selected_language=="hi-IN" %}selected{% endif %}>Hindi</option>
-                <option value="te-IN" {% if selected_language=="te-IN" %}selected{% endif %}>Telugu</option>
-                <option value="ta-IN" {% if selected_language=="ta-IN" %}selected{% endif %}>Tamil</option>
-            </select>
+        <label>City</label><br>
+        <input type="text" name="city" required><br><br>
 
-            <label>City</label>
-            <input type="text" name="city" value="{{ searched_city }}" required>
+        <label>Symptoms</label><br>
+        <textarea name="symptoms" rows="4" required></textarea><br><br>
 
-            <label>Symptoms</label>
-            <textarea name="symptoms" rows="4" required>{{ searched_symptoms }}</textarea>
+        <button type="submit">Analyze</button>
 
-            <button type="submit">Analyze</button>
-        </form>
-    </div>
-
-    {% if health %}
-    <div class="card">
-        <h3>Assistant</h3>
-        <p>{{ health }}</p>
-    </div>
-    {% endif %}
-
-    {% if doctor %}
-    <div class="card">
-        <h3>Recommended Doctor</h3>
-        <div class="tag">{{ doctor }}</div>
-        <p>{{ reason }}</p>
-    </div>
-    {% endif %}
-
-    {% if hospitals %}
-    <div class="card">
-        <h3>Nearby Hospitals (within 30 km)</h3>
-        {% for h in hospitals %}
-            <div class="hospital">
-                • {{ h.name }} — {{ h.distance }} km
-                {% if h.map %}
-                    | <a href="{{ h.map }}" target="_blank">Map</a>
-                {% endif %}
-            </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
+    </form>
 </div>
 
 </body>
