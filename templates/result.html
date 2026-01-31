@@ -1,1 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Result</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #eef2f7;
+        }
+        .box {
+            width: 70%;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .btn {
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+    </style>
+</head>
 
+<body>
+
+<div class="box">
+    <h2>🤖 Assistant</h2>
+    <p>{{ health }}</p>
+</div>
+
+<div class="box">
+    <h3>👨‍⚕️ Recommended Doctor</h3>
+    <b>{{ doctor }}</b>
+    <p>{{ reason }}</p>
+</div>
+
+<div class="box">
+    <h3>🏥 Nearby Hospitals (within 30 km)</h3>
+
+    <ul>
+        {% for h in hospitals %}
+        <li>
+            {{ h.name }} — {{ h.distance }} km |
+            <a href="{{ h.map }}" target="_blank">Map</a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="box" style="text-align:center">
+    <a href="/" class="btn">🔁 Search Again</a>
+</div>
+
+</body>
+</html>
