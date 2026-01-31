@@ -147,25 +147,21 @@ def analyze():
 
     try:
         res = requests.post(
-            "https://api-inference.huggingface.co/models/google/flan-t5-large",
+            "https://api-inference.huggingface.co/models/google/flan-t5-large?wait_for_model=true",
             headers=headers,
             json=payload,
-            timeout=60
+            timeout=120
         )
 
         data = res.json()
 
-        if isinstance(data, dict) and "error" in data:
-            output = "AI is warming up. Please try again in a few seconds."
-
-        elif isinstance(data, list):
+        if isinstance(data, list):
             output = data[0].get("generated_text", "")
-
         else:
-            output = ""
+            output = "Unable to generate response at the moment."
 
     except:
-        output = ""
+        output = "Unable to generate response at the moment."
 
     output_final = translate(output, "en", user_lang)
 
