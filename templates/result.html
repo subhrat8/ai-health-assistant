@@ -2,55 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MedAssist AI – Health Result</title>
-
+    <title>MedAssist AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
+<!-- DARK MODE TOGGLE -->
+<div class="top-actions">
+    <button id="darkToggle">🌙</button>
+    <button id="speakBtn">🔊</button>
+</div>
+
 <div class="container">
 
-    <!-- HEADER -->
     <div class="header">
         <h1>🩺 MedAssist AI</h1>
         <p>Your Community Health Assistant</p>
     </div>
 
-    <!-- ASSISTANT -->
     <div class="card assistant-card">
         <h2>🤖 AI Health Guidance</h2>
         <p id="assistant-text">{{ health }}</p>
     </div>
 
-    <!-- DOCTOR -->
     <div class="card doctor-card">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p class="doctor-name">{{ doctor }}</p>
         <p class="doctor-reason">{{ reason }}</p>
     </div>
 
-    <!-- HOSPITALS -->
     <div class="card">
-        <h2>🏥 Nearby Hospitals (within 30 km)</h2>
+        <h2>🏥 Nearby Hospitals</h2>
 
         {% for h in hospitals %}
         <div class="hospital">
-            <div class="hospital-info">
+            <div>
                 <strong>{{ h.name }}</strong>
                 <span>{{ h.distance }} km away</span>
             </div>
-
-            <a class="map-btn" href="{{ h.map }}" target="_blank">View Map</a>
+            <a href="{{ h.map }}" target="_blank">Map</a>
         </div>
         {% endfor %}
     </div>
 
-    <!-- SEARCH AGAIN -->
     <div class="search-again">
         <a href="/">🔁 New Health Check</a>
     </div>
 
+</div>
+
+<!-- FLOATING ASSISTANT -->
+<div class="floating-assistant" id="assistantBox">
+    💬
+</div>
+
+<div class="assistant-panel" id="assistantPanel">
+    <h3>MedAssist Help</h3>
+    <p>
+        • This system gives general health guidance only.<br>
+        • It does not replace a doctor.<br>
+        • For serious symptoms, consult a hospital immediately.
+    </p>
 </div>
 
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
