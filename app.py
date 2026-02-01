@@ -3,15 +3,15 @@ import math
 import requests
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 
 # ---------------- LOAD ENV ----------------
 load_dotenv()
 
 app = Flask(__name__)
 
-# ---------------- GEMINI CLIENT ----------------
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# ---------------- GEMINI CONFIG ----------------
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ---------------- LANGUAGE ----------------
 def language_name(code):
@@ -68,11 +68,7 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
+        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = res.json()
 
         for item in data.get("elements", []):
@@ -108,6 +104,8 @@ def analyze():
     lang = language_name(language)
 
     try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
         prompt = f"""
 Patient symptoms:
 {symptoms}
@@ -115,21 +113,17 @@ Patient symptoms:
 Reply ONLY in {lang}.
 
 Explain briefly:
-• possible cause
-• basic home care
-• when to see a doctor
+- possible cause
+- basic home care
+- when to see a doctor
 
-Then clearly give:
+Then give:
 
 Doctor: <specialist>
 Reason: <one line>
 """
 
-        response = client.models.generate_content(
-            model="models/gemini-flash-latest",
-            contents=prompt
-        )
-
+        response = model.generate_content(prompt)
         ai_text = response.text
 
     except Exception as e:
