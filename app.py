@@ -1,5 +1,6 @@
 import os
 import math
+import re
 import requests
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
@@ -28,20 +29,31 @@ def language_name(code):
 
 # ================= LOCAL MEDICAL FALLBACK =================
 COMMON_MEDICAL_ADVICE = {
-    "fever": ("Fever may be related to infection or seasonal illness. Rest, hydration, and monitoring temperature are advised.",
-              "General Physician", "Evaluation of infection recommended"),
-
-    "headache": ("Headache may occur due to stress, dehydration, or lack of sleep.",
-                 "General Physician", "Basic medical assessment"),
-
-    "stomach": ("Stomach pain may be related to indigestion, acidity, or food infection.",
-                "Gastroenterologist", "Digestive system evaluation"),
-
-    "cough": ("Cough is commonly linked to cold, throat irritation, or respiratory infection.",
-              "General Physician", "Respiratory assessment"),
-
-    "pain": ("Body pain may occur due to fatigue, viral illness, or muscle strain.",
-             "General Physician", "Physical examination recommended"),
+    "fever": (
+        "Fever may be related to infection or seasonal illness. Rest well, stay hydrated, and monitor body temperature.",
+        "General Physician",
+        "Evaluation of infection recommended"
+    ),
+    "headache": (
+        "Headache may occur due to stress, dehydration, eye strain, or lack of sleep.",
+        "General Physician",
+        "Basic medical assessment"
+    ),
+    "stomach": (
+        "Stomach pain may be related to indigestion, acidity, or food-related infection.",
+        "Gastroenterologist",
+        "Digestive system evaluation"
+    ),
+    "cough": (
+        "Cough is commonly linked to cold, throat irritation, or respiratory infection.",
+        "General Physician",
+        "Respiratory assessment"
+    ),
+    "pain": (
+        "Body pain may occur due to fatigue, viral illness, or muscle strain.",
+        "General Physician",
+        "Physical examination recommended"
+    ),
 }
 
 
@@ -51,11 +63,12 @@ def get_coordinates(city):
     headers = {"User-Agent": "medassist-app"}
 
     try:
-        res = requests.get(url, params={
-            "q": city,
-            "format": "json",
-            "limit": 1
-        }, headers=headers, timeout=10)
+        res = requests.get(
+            url,
+            params={"q": city, "format": "json", "limit": 1},
+            headers=headers,
+            timeout=10
+        )
 
         data = res.json()
         if data:
@@ -70,13 +83,15 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
+
     a = (
-        math.sin(dlat/2)**2 +
+        math.sin(dlat / 2) ** 2 +
         math.cos(math.radians(lat1)) *
         math.cos(math.radians(lat2)) *
-        math.sin(dlon/2)**2
+        math.sin(dlon / 2) ** 2
     )
-    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
+
+    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
 
 def get_nearby_hospitals(lat, lon):
@@ -92,7 +107,12 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=15
+        )
+
         data = res.json()
 
         for item in data.get("elements", []):
@@ -109,7 +129,7 @@ def get_nearby_hospitals(lat, lon):
     return hospitals[:5]
 
 
-# ================= GROK CALL =================
+# ================= GROK =================
 def ask_grok(prompt):
     headers = {
         "Authorization": f"Bearer {GROK_API_KEY}",
@@ -118,19 +138,17 @@ def ask_grok(prompt):
 
     payload = {
         "model": "grok-1",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
+        "messages": [{"role": "user", "content": prompt}]
     }
 
-    response = requests.post(
+    res = requests.post(
         "https://api.x.ai/v1/chat/completions",
         headers=headers,
         json=payload,
         timeout=25
     )
 
-    data = response.json()
+    data = res.json()
     return data["choices"][0]["message"]["content"]
 
 
@@ -161,7 +179,7 @@ Patient symptoms:
 
 Reply ONLY in {lang}.
 Do NOT diagnose.
-Do NOT prescribe dosage.
+Do NOT prescribe medicines or dosage.
 
 Explain briefly:
 - possible cause (may be related to)
@@ -184,47 +202,10 @@ Reason: <short reason>
     except:
         try:
             ai_text = ask_grok(prompt)
-
-        # ===== FINAL FALLBACK =====
         except:
-            symptoms_lower = symptoms.lower()
-            for key in COMMON_MEDICAL_ADVICE:
-                if key in symptoms_lower:
-                    health, doctor, reason = COMMON_MEDICAL_ADVICE[key]
-                    break
-            else:
-                health = "General health guidance is advised. Please rest, stay hydrated, and monitor symptoms."
-
             ai_text = ""
 
-    # ===== PARSE =====
-    if ai_text:
-        for line in ai_text.splitlines():
-            line = line.strip()
-            if line.lower().startswith("doctor:"):
-                doctor = line.split(":",1)[1].strip()
-            elif line.lower().startswith("reason:"):
-                reason = line.split(":",1)[1].strip()
-            else:
-                health += line + " "
-
-    lat, lon, _ = get_coordinates(city)
-    hospitals = get_nearby_hospitals(lat, lon)
-
-    import re
-health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
-health = re.sub(r'\.', '. ', health)
-    return render_template(
-        "result.html",
-        health=health.strip(),
-        doctor=doctor,
-        reason=reason,
-        hospitals=hospitals,
-        searched_city=city,
-        searched_symptoms=symptoms
-    )
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
+    # ===== FALLBACK =====
+    if not ai_text:
+        symptoms_lower = symptoms.lower()
+        for key in COMMON_MEDICAL_ADVICE
