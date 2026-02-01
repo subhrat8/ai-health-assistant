@@ -27,15 +27,15 @@ def language_name(code):
     }.get(code, "English")
 
 
-# ================= LOCAL MEDICAL FALLBACK =================
+# ================= LOCAL FALLBACK SYSTEM =================
 COMMON_MEDICAL_ADVICE = {
     "fever": (
-        "Fever may be related to infection or seasonal illness. Rest well, stay hydrated, and monitor body temperature.",
+        "Fever may be related to infection or seasonal illness. Rest well, stay hydrated, and monitor body temperature regularly.",
         "General Physician",
         "Evaluation of infection recommended"
     ),
     "headache": (
-        "Headache may occur due to stress, dehydration, or lack of sleep.",
+        "Headache may occur due to stress, dehydration, eye strain, or lack of sleep.",
         "General Physician",
         "Basic medical assessment"
     ),
@@ -53,7 +53,7 @@ COMMON_MEDICAL_ADVICE = {
         "Body pain may occur due to fatigue, viral illness, or muscle strain.",
         "General Physician",
         "Physical examination recommended"
-    ),
+    )
 }
 
 
@@ -81,7 +81,7 @@ def get_coordinates(city):
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
 
     a = (
         math.sin(dlat / 2) ** 2 +
@@ -176,11 +176,14 @@ Patient symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-Do NOT diagnose.
-Do NOT prescribe medicines or dosage.
+
+Rules:
+- Do NOT diagnose disease
+- Do NOT give medicine dosage
+- Use phrases like "may be related to"
 
 Explain briefly:
-- possible cause (may be related to)
+- possible cause
 - basic home care
 - when to see a doctor
 
@@ -189,6 +192,8 @@ End strictly with:
 Doctor: <specialist>
 Reason: <short reason>
 """
+
+    ai_text = ""
 
     # ===== GEMINI =====
     try:
@@ -205,15 +210,11 @@ Reason: <short reason>
     # ===== FALLBACK =====
     if not ai_text:
         symptoms_lower = symptoms.lower()
-        found = False
-
         for key in COMMON_MEDICAL_ADVICE:
             if key in symptoms_lower:
                 health, doctor, reason = COMMON_MEDICAL_ADVICE[key]
-                found = True
                 break
-
-        if not found:
+        else:
             health = (
                 "Based on your symptoms, general medical guidance is advised. "
                 "Please rest, stay hydrated, and monitor your condition carefully."
@@ -230,9 +231,9 @@ Reason: <short reason>
             else:
                 health += line + " "
 
-    # ===== FIX WORD SPACING =====
+    # ===== FIX TEXT SPACING =====
     health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
-    health = re.sub(r'\.', '. ', health)
+    health = re.sub(r'\s+', ' ', health)
 
     lat, lon, _ = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
