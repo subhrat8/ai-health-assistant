@@ -10,8 +10,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# ================= GEMINI CONFIG =================
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# ================= API KEYS =================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROK_API_KEY = os.getenv("GROK_API_KEY")
+
+genai.configure(api_key=GEMINI_API_KEY)
 
 # ================= LANGUAGE =================
 def language_name(code):
@@ -23,33 +26,22 @@ def language_name(code):
     }.get(code, "English")
 
 
-# ================= FALLBACK MEDICAL SYSTEM =================
+# ================= LOCAL MEDICAL FALLBACK =================
 COMMON_MEDICAL_ADVICE = {
-    "fever": {
-        "text": "Fever may be related to infection or seasonal illness. Rest well, drink fluids, and monitor body temperature regularly.",
-        "doctor": "General Physician",
-        "reason": "Evaluation of infection recommended"
-    },
-    "headache": {
-        "text": "Headache may be caused by stress, dehydration, eye strain, or lack of sleep.",
-        "doctor": "General Physician",
-        "reason": "Basic medical assessment"
-    },
-    "stomach": {
-        "text": "Stomach discomfort may occur due to indigestion, acidity, or food-related issues.",
-        "doctor": "Gastroenterologist",
-        "reason": "Digestive system evaluation"
-    },
-    "cough": {
-        "text": "Cough is commonly associated with cold, throat irritation, or respiratory infection.",
-        "doctor": "General Physician",
-        "reason": "Respiratory assessment"
-    },
-    "pain": {
-        "text": "Body pain may be related to fatigue, muscle strain, or viral infection.",
-        "doctor": "General Physician",
-        "reason": "Physical examination recommended"
-    }
+    "fever": ("Fever may be related to infection or seasonal illness. Rest, hydration, and monitoring temperature are advised.",
+              "General Physician", "Evaluation of infection recommended"),
+
+    "headache": ("Headache may occur due to stress, dehydration, or lack of sleep.",
+                 "General Physician", "Basic medical assessment"),
+
+    "stomach": ("Stomach pain may be related to indigestion, acidity, or food infection.",
+                "Gastroenterologist", "Digestive system evaluation"),
+
+    "cough": ("Cough is commonly linked to cold, throat irritation, or respiratory infection.",
+              "General Physician", "Respiratory assessment"),
+
+    "pain": ("Body pain may occur due to fatigue, viral illness, or muscle strain.",
+             "General Physician", "Physical examination recommended"),
 }
 
 
@@ -59,13 +51,15 @@ def get_coordinates(city):
     headers = {"User-Agent": "medassist-app"}
 
     try:
-        params = {"q": city, "format": "json", "limit": 1}
-        res = requests.get(url, params=params, headers=headers, timeout=10)
-        data = res.json()
+        res = requests.get(url, params={
+            "q": city,
+            "format": "json",
+            "limit": 1
+        }, headers=headers, timeout=10)
 
+        data = res.json()
         if data:
             return float(data[0]["lat"]), float(data[0]["lon"]), data[0]["display_name"]
-
     except:
         pass
 
@@ -76,16 +70,13 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
-
     a = (
-        math.sin(dlat / 2) ** 2 +
+        math.sin(dlat/2)**2 +
         math.cos(math.radians(lat1)) *
         math.cos(math.radians(lat2)) *
-        math.sin(dlon / 2) ** 2
+        math.sin(dlon/2)**2
     )
-
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return round(R * c, 2)
+    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
 
 def get_nearby_hospitals(lat, lon):
@@ -101,30 +92,46 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
-
+        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = res.json()
 
         for item in data.get("elements", []):
             name = item.get("tags", {}).get("name")
-            h_lat = item.get("lat")
-            h_lon = item.get("lon")
-
-            if name and h_lat and h_lon:
+            if name and item.get("lat") and item.get("lon"):
                 hospitals.append({
                     "name": name,
-                    "distance": calculate_distance(lat, lon, h_lat, h_lon),
-                    "map": f"https://www.google.com/maps?q={h_lat},{h_lon}"
+                    "distance": calculate_distance(lat, lon, item["lat"], item["lon"]),
+                    "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
                 })
-
     except:
         pass
 
     return hospitals[:5]
+
+
+# ================= GROK CALL =================
+def ask_grok(prompt):
+    headers = {
+        "Authorization": f"Bearer {GROK_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "grok-1",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    response = requests.post(
+        "https://api.x.ai/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=25
+    )
+
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
 
 
 # ================= ROUTES =================
@@ -146,80 +153,62 @@ def analyze():
     doctor = "General Physician"
     reason = "Initial consultation recommended"
 
-    # ================= GEMINI AI =================
-    try:
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            generation_config={
-                "temperature": 0.4,
-                "max_output_tokens": 300
-            }
-        )
-
-        prompt = f"""
+    prompt = f"""
 You are a medical information assistant.
 
 Patient symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-
-Rules:
-- Give general information only
-- Do NOT diagnose
-- Do NOT prescribe medicines
-- Do NOT give dosage
+Do NOT diagnose.
+Do NOT prescribe dosage.
 
 Explain briefly:
-- possible cause (use words like "may be related to")
+- possible cause (may be related to)
 - basic home care
 - when to see a doctor
 
-End STRICTLY with:
+End strictly with:
 
 Doctor: <specialist>
 Reason: <short reason>
 """
 
+    # ===== TRY GEMINI =====
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         ai_text = response.text.strip()
 
+    # ===== TRY GROK =====
+    except:
+        try:
+            ai_text = ask_grok(prompt)
+
+        # ===== FINAL FALLBACK =====
+        except:
+            symptoms_lower = symptoms.lower()
+            for key in COMMON_MEDICAL_ADVICE:
+                if key in symptoms_lower:
+                    health, doctor, reason = COMMON_MEDICAL_ADVICE[key]
+                    break
+            else:
+                health = "General health guidance is advised. Please rest, stay hydrated, and monitor symptoms."
+
+            ai_text = ""
+
+    # ===== PARSE =====
+    if ai_text:
         for line in ai_text.splitlines():
             line = line.strip()
-
             if line.lower().startswith("doctor:"):
-                doctor = line.split(":", 1)[1].strip()
-
+                doctor = line.split(":",1)[1].strip()
             elif line.lower().startswith("reason:"):
-                reason = line.split(":", 1)[1].strip()
-
+                reason = line.split(":",1)[1].strip()
             else:
                 health += line + " "
 
-    # ================= FALLBACK SYSTEM =================
-    except Exception as e:
-        print("Gemini error:", e)
-
-        symptoms_lower = symptoms.lower()
-        matched = False
-
-        for key in COMMON_MEDICAL_ADVICE:
-            if key in symptoms_lower:
-                advice = COMMON_MEDICAL_ADVICE[key]
-                health = advice["text"]
-                doctor = advice["doctor"]
-                reason = advice["reason"]
-                matched = True
-                break
-
-        if not matched:
-            health = (
-                "Based on your symptoms, general medical guidance is advised. "
-                "Please rest, stay hydrated, and monitor your condition carefully."
-            )
-
-    # ================= LOCATION =================
-    lat, lon, location_used = get_coordinates(city)
+    lat, lon, _ = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
 
     return render_template(
@@ -233,6 +222,5 @@ Reason: <short reason>
     )
 
 
-# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
