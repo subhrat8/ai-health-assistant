@@ -1,3 +1,105 @@
+import os
+import math
+import requests
+from flask import Flask, render_template, request
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+# ---------------- LOAD ENV ----------------
+load_dotenv()
+
+# ---------------- FLASK APP ----------------
+app = Flask(__name__)
+
+# ---------------- GEMINI CONFIG ----------------
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# ---------------- LANGUAGE ----------------
+def language_name(code):
+    return {
+        "en-US": "English",
+        "hi-IN": "Hindi",
+        "te-IN": "Telugu",
+        "ta-IN": "Tamil"
+    }.get(code, "English")
+
+
+# ---------------- LOCATION ----------------
+def get_coordinates(city):
+    url = "https://nominatim.openstreetmap.org/search"
+    headers = {"User-Agent": "ai-health-app"}
+
+    try:
+        params = {"q": city, "format": "json", "limit": 1}
+        res = requests.get(url, params=params, headers=headers, timeout=10)
+        data = res.json()
+
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"]), data[0]["display_name"]
+    except:
+        pass
+
+    return 20.5937, 78.9629, "India (approximate location)"
+
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2 +
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
+        math.sin(dlon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
+
+
+def get_nearby_hospitals(lat, lon):
+    hospitals = []
+
+    query = f"""
+    [out:json];
+    (
+      node["amenity"="hospital"](around:30000,{lat},{lon});
+      node["amenity"="clinic"](around:30000,{lat},{lon});
+    );
+    out;
+    """
+
+    try:
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=15
+        )
+        data = res.json()
+
+        for item in data.get("elements", []):
+            name = item.get("tags", {}).get("name")
+            h_lat = item.get("lat")
+            h_lon = item.get("lon")
+
+            if name and h_lat and h_lon:
+                hospitals.append({
+                    "name": name,
+                    "distance": calculate_distance(lat, lon, h_lat, h_lon),
+                    "map": f"https://www.google.com/maps?q={h_lat},{h_lon}"
+                })
+    except:
+        pass
+
+    return hospitals[:5]
+
+
+# ---------------- HOME PAGE ----------------
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("index.html")
+
+
+# ---------------- ANALYZE ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
 
@@ -6,8 +108,6 @@ def analyze():
     language = request.form.get("language", "en-US")
 
     lang = language_name(language)
-
-    ai_text = ""
 
     try:
         model = genai.GenerativeModel(
@@ -25,45 +125,32 @@ Patient symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-Do NOT refuse.
-Do NOT say you are not a doctor.
 
 Explain briefly:
 - possible cause
 - basic home care
 - when to see a doctor
 
-At the end strictly write exactly in this format:
+At the end strictly write:
 
 Doctor: <specialist>
 Reason: <short reason>
 """
 
         response = model.generate_content(prompt)
-
-        # ✅ STRONG RESPONSE CHECK
-        if (
-            response
-            and hasattr(response, "candidates")
-            and response.candidates
-            and response.candidates[0].content.parts
-        ):
-            ai_text = response.candidates[0].content.parts[0].text.strip()
-        else:
-            raise ValueError("Gemini returned empty content")
+        ai_text = response.text.strip()
 
     except Exception as e:
         print("Gemini error:", e)
 
         ai_text = (
             "Based on the symptoms, basic medical guidance is advised. "
-            "Please take adequate rest, drink fluids, and monitor your condition. "
-            "If symptoms persist or worsen, seek medical attention.\n\n"
+            "Please rest, stay hydrated, and monitor your condition.\n\n"
             "Doctor: General Physician\n"
             "Reason: Initial evaluation recommended."
         )
 
-    # ---------------- PARSING ----------------
+    # ---------------- PARSE ----------------
     health = ""
     doctor = "General Physician"
     reason = "Initial consultation recommended."
@@ -93,3 +180,8 @@ Reason: <short reason>
         searched_city=city,
         searched_symptoms=symptoms
     )
+
+
+# ---------------- RUN ----------------
+if __name__ == "__main__":
+    app.run(debug=True)
