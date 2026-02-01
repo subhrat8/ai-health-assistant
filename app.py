@@ -35,7 +35,7 @@ COMMON_MEDICAL_ADVICE = {
         "Evaluation of infection recommended"
     ),
     "headache": (
-        "Headache may occur due to stress, dehydration, eye strain, or lack of sleep.",
+        "Headache may occur due to stress, dehydration, or lack of sleep.",
         "General Physician",
         "Basic medical assessment"
     ),
@@ -69,7 +69,6 @@ def get_coordinates(city):
             headers=headers,
             timeout=10
         )
-
         data = res.json()
         if data:
             return float(data[0]["lat"]), float(data[0]["lon"]), data[0]["display_name"]
@@ -82,7 +81,7 @@ def get_coordinates(city):
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
+    dlon = math.radians(lat2 - lat1)
 
     a = (
         math.sin(dlat / 2) ** 2 +
@@ -112,7 +111,6 @@ def get_nearby_hospitals(lat, lon):
             data=query,
             timeout=15
         )
-
         data = res.json()
 
         for item in data.get("elements", []):
@@ -192,13 +190,12 @@ Doctor: <specialist>
 Reason: <short reason>
 """
 
-    # ===== TRY GEMINI =====
+    # ===== GEMINI =====
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         ai_text = response.text.strip()
 
-    # ===== TRY GROK =====
     except:
         try:
             ai_text = ask_grok(prompt)
@@ -208,4 +205,48 @@ Reason: <short reason>
     # ===== FALLBACK =====
     if not ai_text:
         symptoms_lower = symptoms.lower()
-        for key in COMMON_MEDICAL_ADVICE
+        found = False
+
+        for key in COMMON_MEDICAL_ADVICE:
+            if key in symptoms_lower:
+                health, doctor, reason = COMMON_MEDICAL_ADVICE[key]
+                found = True
+                break
+
+        if not found:
+            health = (
+                "Based on your symptoms, general medical guidance is advised. "
+                "Please rest, stay hydrated, and monitor your condition carefully."
+            )
+
+    # ===== PARSE AI =====
+    if ai_text:
+        for line in ai_text.splitlines():
+            line = line.strip()
+            if line.lower().startswith("doctor:"):
+                doctor = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("reason:"):
+                reason = line.split(":", 1)[1].strip()
+            else:
+                health += line + " "
+
+    # ===== FIX WORD SPACING =====
+    health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
+    health = re.sub(r'\.', '. ', health)
+
+    lat, lon, _ = get_coordinates(city)
+    hospitals = get_nearby_hospitals(lat, lon)
+
+    return render_template(
+        "result.html",
+        health=health.strip(),
+        doctor=doctor,
+        reason=reason,
+        hospitals=hospitals,
+        searched_city=city,
+        searched_symptoms=symptoms
+    )
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
