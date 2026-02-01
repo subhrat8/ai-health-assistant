@@ -26,7 +26,7 @@ def language_name(code):
 # ================= FALLBACK MEDICAL SYSTEM =================
 COMMON_MEDICAL_ADVICE = {
     "fever": {
-        "text": "Fever may be related to infection or seasonal illness. Rest well, drink fluids, and monitor temperature regularly.",
+        "text": "Fever may be related to infection or seasonal illness. Rest well, drink fluids, and monitor body temperature regularly.",
         "doctor": "General Physician",
         "reason": "Evaluation of infection recommended"
     },
@@ -36,17 +36,17 @@ COMMON_MEDICAL_ADVICE = {
         "reason": "Basic medical assessment"
     },
     "stomach": {
-        "text": "Stomach pain may occur due to indigestion, acidity, or food-related infection.",
+        "text": "Stomach discomfort may occur due to indigestion, acidity, or food-related issues.",
         "doctor": "Gastroenterologist",
         "reason": "Digestive system evaluation"
     },
     "cough": {
-        "text": "Cough is commonly related to cold, throat irritation, or respiratory infection.",
+        "text": "Cough is commonly associated with cold, throat irritation, or respiratory infection.",
         "doctor": "General Physician",
         "reason": "Respiratory assessment"
     },
     "pain": {
-        "text": "Body pain may occur due to fatigue, viral infection, or muscle strain.",
+        "text": "Body pain may be related to fatigue, muscle strain, or viral infection.",
         "doctor": "General Physician",
         "reason": "Physical examination recommended"
     }
@@ -164,17 +164,18 @@ Patient symptoms:
 
 Reply ONLY in {lang}.
 
-Give general medical information only.
-Do NOT give dosage.
-Do NOT prescribe medicines.
-Do NOT confirm disease.
+Rules:
+- Give general information only
+- Do NOT diagnose
+- Do NOT prescribe medicines
+- Do NOT give dosage
 
 Explain briefly:
-- possible cause (use words like may be related to)
+- possible cause (use words like "may be related to")
 - basic home care
 - when to see a doctor
 
-End strictly with:
+End STRICTLY with:
 
 Doctor: <specialist>
 Reason: <short reason>
