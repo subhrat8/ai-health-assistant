@@ -1,40 +1,45 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    // TYPE EFFECT
-    const text = document.getElementById("assistant-text");
-    if (text) {
-        const content = text.innerText;
-        text.innerText = "";
+    // Typing effect for main AI text
+    const textElement = document.getElementById("assistant-text");
+    if (textElement) {
+        const text = textElement.innerText;
+        textElement.innerText = "";
         let i = 0;
-
         function type() {
-            if (i < content.length) {
-                text.innerText += content.charAt(i++);
-                setTimeout(type, 18);
+            if (i < text.length) {
+                textElement.innerText += text.charAt(i);
+                i++;
+                setTimeout(type, 20);
             }
         }
         type();
     }
 
-    // VOICE SPEAK
-    document.getElementById("speakBtn").onclick = () => {
-        const msg = new SpeechSynthesisUtterance(
-            document.getElementById("assistant-text").innerText
-        );
-        speechSynthesis.speak(msg);
-    };
+    // Chat toggle
+    const bubble = document.getElementById("chat-bubble");
+    const box = document.getElementById("chat-box");
 
-    // DARK MODE
-    document.getElementById("darkToggle").onclick = () => {
-        document.body.classList.toggle("dark");
-    };
-
-    // FLOATING ASSISTANT
-    const box = document.getElementById("assistantBox");
-    const panel = document.getElementById("assistantPanel");
-
-    box.onclick = () => {
-        panel.style.display =
-            panel.style.display === "block" ? "none" : "block";
+    bubble.onclick = () => {
+        box.classList.toggle("open");
     };
 });
+
+function sendMessage() {
+    const input = document.getElementById("chat-input");
+    const body = document.getElementById("chat-body");
+    if (!input.value.trim()) return;
+
+    const userMsg = document.createElement("div");
+    userMsg.className = "user-msg";
+    userMsg.innerText = input.value;
+    body.appendChild(userMsg);
+
+    const botMsg = document.createElement("div");
+    botMsg.className = "bot-msg";
+    botMsg.innerText = "Thanks! This assistant is currently for guidance only. Medical analysis is shown above.";
+    body.appendChild(botMsg);
+
+    body.scrollTop = body.scrollHeight;
+    input.value = "";
+}
