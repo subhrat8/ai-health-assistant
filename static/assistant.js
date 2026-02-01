@@ -1,18 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const textElement = document.getElementById("assistant-text");
 
+    const textElement = document.getElementById("assistant-text");
     if (!textElement) return;
 
-    const text = textElement.innerText;
+    const fullText = textElement.innerText.trim();
     textElement.innerText = "";
 
     let index = 0;
 
     function typeEffect() {
-        if (index < text.length) {
-            textElement.innerText += text.charAt(index);
+        if (index < fullText.length) {
+            textElement.innerText += fullText.charAt(index);
             index++;
-            setTimeout(typeEffect, 25);
+            setTimeout(typeEffect, 18);
         }
     }
 
