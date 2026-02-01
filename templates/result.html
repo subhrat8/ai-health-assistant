@@ -1,29 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Health Result</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
 
 <div class="container">
 
+    <!-- HEADER -->
     <div class="header">
         <h1>🩺 MedAssist AI</h1>
         <p>Your Community Health Assistant</p>
     </div>
 
+    <!-- ASSISTANT RESPONSE -->
     <div class="card">
         <h2>🤖 Assistant</h2>
-        <p>{{ health }}</p>
+        <p id="assistant-text">{{ health }}</p>
     </div>
 
+    <!-- DOCTOR -->
     <div class="card doctor-box">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p><strong>{{ doctor }}</strong></p>
         <p>{{ reason }}</p>
     </div>
 
+    <!-- HOSPITALS -->
     <div class="card">
         <h2>🏥 Nearby Hospitals (within 30 km)</h2>
 
@@ -40,33 +46,15 @@
         {% endfor %}
     </div>
 
+    <!-- SEARCH AGAIN -->
     <div class="search-again">
         <a href="/">🔁 Search Again</a>
     </div>
 
 </div>
 
-</body>
-</html>
-    <p>{{ reason }}</p>
-</div>
-
-<div class="box">
-    <h3>🏥 Nearby Hospitals (within 30 km)</h3>
-
-    <ul>
-        {% for h in hospitals %}
-        <li>
-            {{ h.name }} — {{ h.distance }} km |
-            <a href="{{ h.map }}" target="_blank">Map</a>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-
-<div class="box" style="text-align:center">
-    <a href="/" class="btn">🔁 Search Again</a>
-</div>
+<!-- ASSISTANT TYPING SCRIPT -->
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
 
 </body>
 </html>
