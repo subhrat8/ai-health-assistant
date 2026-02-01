@@ -10,21 +10,30 @@ def analyze():
     ai_text = ""
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            generation_config={
+                "temperature": 0.4,
+                "max_output_tokens": 300
+            }
+        )
 
         prompt = f"""
+You are a medical information assistant.
+
 Patient symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-Keep it simple and safe.
+Do NOT refuse.
+Do NOT say you are not a doctor.
 
 Explain briefly:
 - possible cause
 - basic home care
 - when to see a doctor
 
-At the end strictly write in this format:
+At the end strictly write exactly in this format:
 
 Doctor: <specialist>
 Reason: <short reason>
@@ -32,21 +41,26 @@ Reason: <short reason>
 
         response = model.generate_content(prompt)
 
-        # ✅ SAFE RESPONSE HANDLING
-        if response and hasattr(response, "text") and response.text:
-            ai_text = response.text
+        # ✅ STRONG RESPONSE CHECK
+        if (
+            response
+            and hasattr(response, "candidates")
+            and response.candidates
+            and response.candidates[0].content.parts
+        ):
+            ai_text = response.candidates[0].content.parts[0].text.strip()
         else:
-            raise ValueError("Empty Gemini response")
+            raise ValueError("Gemini returned empty content")
 
     except Exception as e:
         print("Gemini error:", e)
 
         ai_text = (
-            "Based on the symptoms, basic medical guidance is advised.\n"
-            "Please maintain hydration and adequate rest.\n"
-            "If symptoms persist or worsen, seek medical help.\n\n"
+            "Based on the symptoms, basic medical guidance is advised. "
+            "Please take adequate rest, drink fluids, and monitor your condition. "
+            "If symptoms persist or worsen, seek medical attention.\n\n"
             "Doctor: General Physician\n"
-            "Reason: Initial evaluation required."
+            "Reason: Initial evaluation recommended."
         )
 
     # ---------------- PARSING ----------------
@@ -55,16 +69,16 @@ Reason: <short reason>
     reason = "Initial consultation recommended."
 
     for line in ai_text.splitlines():
-        line_clean = line.strip()
+        line = line.strip()
 
-        if line_clean.lower().startswith("doctor:"):
-            doctor = line_clean.split(":", 1)[1].strip()
+        if line.lower().startswith("doctor:"):
+            doctor = line.split(":", 1)[1].strip()
 
-        elif line_clean.lower().startswith("reason:"):
-            reason = line_clean.split(":", 1)[1].strip()
+        elif line.lower().startswith("reason:"):
+            reason = line.split(":", 1)[1].strip()
 
         else:
-            health += line_clean + " "
+            health += line + " "
 
     # ---------------- LOCATION ----------------
     lat, lon, location_used = get_coordinates(city)
