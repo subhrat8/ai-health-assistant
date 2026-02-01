@@ -1,20 +1,40 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
 
-    const textElement = document.getElementById("assistant-text");
-    if (!textElement) return;
+    // TYPE EFFECT
+    const text = document.getElementById("assistant-text");
+    if (text) {
+        const content = text.innerText;
+        text.innerText = "";
+        let i = 0;
 
-    const fullText = textElement.innerText.trim();
-    textElement.innerText = "";
-
-    let index = 0;
-
-    function typeEffect() {
-        if (index < fullText.length) {
-            textElement.innerText += fullText.charAt(index);
-            index++;
-            setTimeout(typeEffect, 18);
+        function type() {
+            if (i < content.length) {
+                text.innerText += content.charAt(i++);
+                setTimeout(type, 18);
+            }
         }
+        type();
     }
 
-    typeEffect();
+    // VOICE SPEAK
+    document.getElementById("speakBtn").onclick = () => {
+        const msg = new SpeechSynthesisUtterance(
+            document.getElementById("assistant-text").innerText
+        );
+        speechSynthesis.speak(msg);
+    };
+
+    // DARK MODE
+    document.getElementById("darkToggle").onclick = () => {
+        document.body.classList.toggle("dark");
+    };
+
+    // FLOATING ASSISTANT
+    const box = document.getElementById("assistantBox");
+    const panel = document.getElementById("assistantPanel");
+
+    box.onclick = () => {
+        panel.style.display =
+            panel.style.display === "block" ? "none" : "block";
+    };
 });
