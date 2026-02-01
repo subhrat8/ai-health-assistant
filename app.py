@@ -3,43 +3,24 @@ import math
 import requests
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
+from google import genai
 
 # ---------------- LOAD ENV ----------------
 load_dotenv()
 
 app = Flask(__name__)
 
-HF_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+# ---------------- GEMINI CLIENT ----------------
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ---------------- LANGUAGE ----------------
 def language_name(code):
     return {
-        "en-US": "en",
-        "hi-IN": "hi",
-        "te-IN": "te",
-        "ta-IN": "ta"
-    }.get(code, "en")
-
-
-# ---------------- TRANSLATION ----------------
-def translate(text, source, target):
-    if source == target:
-        return text
-
-    url = "https://libretranslate.de/translate"
-
-    payload = {
-        "q": text,
-        "source": source,
-        "target": target,
-        "format": "text"
-    }
-
-    try:
-        res = requests.post(url, data=payload, timeout=10)
-        return res.json()["translatedText"]
-    except:
-        return text
+        "en-US": "English",
+        "hi-IN": "Hindi",
+        "te-IN": "Telugu",
+        "ta-IN": "Tamil"
+    }.get(code, "English")
 
 
 # ---------------- LOCATION ----------------
@@ -57,7 +38,7 @@ def get_coordinates(city):
     except:
         pass
 
-    return 20.5937, 78.9629, "India"
+    return 20.5937, 78.9629, "India (approximate location)"
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -87,7 +68,11 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+        res = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=15
+        )
         data = res.json()
 
         for item in data.get("elements", []):
@@ -120,60 +105,50 @@ def analyze():
     symptoms = request.form.get("symptoms")
     language = request.form.get("language", "en-US")
 
-    user_lang = language_name(language)
-
-    symptoms_en = translate(symptoms, user_lang, "en")
-
-    prompt = f"""
-    Patient symptoms: {symptoms_en}
-
-    Explain briefly:
-    possible cause,
-    basic home care,
-    when to see a doctor.
-
-    Then give:
-    Doctor: <specialist>
-    Reason: <one line>
-    """
-
-    headers = {
-        "Authorization": f"Bearer {HF_API_KEY}"
-    }
-
-    payload = {
-        "inputs": prompt
-    }
+    lang = language_name(language)
 
     try:
-        res = requests.post(
-            "https://api-inference.huggingface.co/models/google/flan-t5-large?wait_for_model=true",
-            headers=headers,
-            json=payload,
-            timeout=120
+        prompt = f"""
+Patient symptoms:
+{symptoms}
+
+Reply ONLY in {lang}.
+
+Explain briefly:
+• possible cause
+• basic home care
+• when to see a doctor
+
+Then clearly give:
+
+Doctor: <specialist>
+Reason: <one line>
+"""
+
+        response = client.models.generate_content(
+            model="models/gemini-flash-latest",
+            contents=prompt
         )
 
-        data = res.json()
+        ai_text = response.text
 
-        if isinstance(data, list):
-            output = data[0].get("generated_text", "")
-        else:
-            output = "Unable to generate response at the moment."
-
-    except:
-        output = "Unable to generate response at the moment."
-
-    output_final = translate(output, "en", user_lang)
+    except Exception as e:
+        print("Gemini error:", e)
+        ai_text = (
+            "AI service temporarily unavailable.\n"
+            "Doctor: General Physician\n"
+            "Reason: Initial consultation recommended."
+        )
 
     health = ""
     doctor = ""
     reason = ""
 
-    for line in output_final.splitlines():
-        if "doctor" in line.lower():
-            doctor = line.split(":")[-1].strip()
-        elif "reason" in line.lower():
-            reason = line.split(":")[-1].strip()
+    for line in ai_text.splitlines():
+        if line.lower().startswith("doctor:"):
+            doctor = line.replace("Doctor:", "").strip()
+        elif line.lower().startswith("reason:"):
+            reason = line.replace("Reason:", "").strip()
         else:
             health += line + " "
 
