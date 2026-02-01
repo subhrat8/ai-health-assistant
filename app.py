@@ -211,6 +211,9 @@ Reason: <short reason>
     lat, lon, _ = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
 
+    import re
+health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
+health = re.sub(r'\.', '. ', health)
     return render_template(
         "result.html",
         health=health.strip(),
@@ -224,3 +227,4 @@ Reason: <short reason>
 
 if __name__ == "__main__":
     app.run(debug=True)
+
