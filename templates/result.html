@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MedAssist AI – Result</title>
+    <title>MedAssist AI – Health Result</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -17,16 +18,16 @@
     </div>
 
     <!-- ASSISTANT -->
-    <div class="card">
-        <h2>🤖 Assistant</h2>
+    <div class="card assistant-card">
+        <h2>🤖 AI Health Guidance</h2>
         <p id="assistant-text">{{ health }}</p>
     </div>
 
     <!-- DOCTOR -->
-    <div class="card doctor-box">
+    <div class="card doctor-card">
         <h2>👨‍⚕️ Recommended Doctor</h2>
-        <p><strong>{{ doctor }}</strong></p>
-        <p>{{ reason }}</p>
+        <p class="doctor-name">{{ doctor }}</p>
+        <p class="doctor-reason">{{ reason }}</p>
     </div>
 
     <!-- HOSPITALS -->
@@ -35,21 +36,19 @@
 
         {% for h in hospitals %}
         <div class="hospital">
-            <div>
-                <strong>{{ h.name }}</strong><br>
-                Distance: {{ h.distance }} km
+            <div class="hospital-info">
+                <strong>{{ h.name }}</strong>
+                <span>{{ h.distance }} km away</span>
             </div>
 
-            <div>
-                <a class="map-btn" href="{{ h.map }}" target="_blank">Map</a>
-            </div>
+            <a class="map-btn" href="{{ h.map }}" target="_blank">View Map</a>
         </div>
         {% endfor %}
     </div>
 
     <!-- SEARCH AGAIN -->
     <div class="search-again">
-        <a href="/">🔁 Search Again</a>
+        <a href="/">🔁 New Health Check</a>
     </div>
 
 </div>
