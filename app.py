@@ -5,16 +5,15 @@ from flask import Flask, render_template, request
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# ---------------- LOAD ENV ----------------
+# ================= LOAD ENV =================
 load_dotenv()
 
-# ---------------- FLASK APP ----------------
 app = Flask(__name__)
 
-# ---------------- GEMINI CONFIG ----------------
+# ================= GEMINI =================
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# ---------------- LANGUAGE ----------------
+# ================= LANGUAGE =================
 def language_name(code):
     return {
         "en-US": "English",
@@ -24,7 +23,37 @@ def language_name(code):
     }.get(code, "English")
 
 
-# ---------------- LOCATION ----------------
+# ================= FALLBACK MEDICAL SYSTEM =================
+COMMON_MEDICAL_ADVICE = {
+    "fever": {
+        "text": "Fever is commonly caused by infection. Rest well, drink plenty of fluids, and monitor body temperature regularly.",
+        "doctor": "General Physician",
+        "reason": "Evaluation of infection recommended"
+    },
+    "headache": {
+        "text": "Headache may be caused by stress, dehydration, eye strain, or lack of sleep.",
+        "doctor": "General Physician",
+        "reason": "Basic neurological assessment"
+    },
+    "stomach": {
+        "text": "Stomach pain may occur due to indigestion, food infection, or acidity.",
+        "doctor": "Gastroenterologist",
+        "reason": "Digestive system evaluation"
+    },
+    "cough": {
+        "text": "Cough is often related to cold, flu, or throat irritation.",
+        "doctor": "General Physician",
+        "reason": "Respiratory evaluation"
+    },
+    "pain": {
+        "text": "Body pain may occur due to fatigue, viral infection, or muscle strain.",
+        "doctor": "General Physician",
+        "reason": "Initial physical assessment"
+    }
+}
+
+
+# ================= LOCATION =================
 def get_coordinates(city):
     url = "https://nominatim.openstreetmap.org/search"
     headers = {"User-Agent": "ai-health-app"}
@@ -69,11 +98,7 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
+        res = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = res.json()
 
         for item in data.get("elements", []):
@@ -93,13 +118,12 @@ def get_nearby_hospitals(lat, lon):
     return hospitals[:5]
 
 
-# ---------------- HOME PAGE ----------------
+# ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
 
 
-# ---------------- ANALYZE ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
 
@@ -109,6 +133,11 @@ def analyze():
 
     lang = language_name(language)
 
+    health = ""
+    doctor = "General Physician"
+    reason = "Initial consultation recommended"
+
+    # ---------- GEMINI ----------
     try:
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
@@ -140,34 +169,38 @@ Reason: <short reason>
         response = model.generate_content(prompt)
         ai_text = response.text.strip()
 
+        for line in ai_text.splitlines():
+            line = line.strip()
+            if line.lower().startswith("doctor:"):
+                doctor = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("reason:"):
+                reason = line.split(":", 1)[1].strip()
+            else:
+                health += line + " "
+
+    # ---------- FALLBACK ----------
     except Exception as e:
         print("Gemini error:", e)
 
-        ai_text = (
-            "Based on the symptoms, basic medical guidance is advised. "
-            "Please rest, stay hydrated, and monitor your condition.\n\n"
-            "Doctor: General Physician\n"
-            "Reason: Initial evaluation recommended."
-        )
+        symptoms_lower = symptoms.lower()
+        matched = False
 
-    # ---------------- PARSE ----------------
-    health = ""
-    doctor = "General Physician"
-    reason = "Initial consultation recommended."
+        for key in COMMON_MEDICAL_ADVICE:
+            if key in symptoms_lower:
+                advice = COMMON_MEDICAL_ADVICE[key]
+                health = advice["text"]
+                doctor = advice["doctor"]
+                reason = advice["reason"]
+                matched = True
+                break
 
-    for line in ai_text.splitlines():
-        line = line.strip()
+        if not matched:
+            health = (
+                "Based on your symptoms, general medical guidance is advised. "
+                "Please rest, stay hydrated, and monitor your condition carefully."
+            )
 
-        if line.lower().startswith("doctor:"):
-            doctor = line.split(":", 1)[1].strip()
-
-        elif line.lower().startswith("reason:"):
-            reason = line.split(":", 1)[1].strip()
-
-        else:
-            health += line + " "
-
-    # ---------------- LOCATION ----------------
+    # ---------- LOCATION ----------
     lat, lon, location_used = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
 
@@ -182,6 +215,6 @@ Reason: <short reason>
     )
 
 
-# ---------------- RUN ----------------
+# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
