@@ -90,7 +90,8 @@ def calculate_distance(lat1, lon1, lat2, lon2):
         math.sin(dlon / 2) ** 2
     )
 
-    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(R * c, 2)
 
 
 def get_nearby_hospitals(lat, lon):
@@ -179,7 +180,8 @@ Reply ONLY in {lang}.
 
 Rules:
 - Do NOT diagnose disease
-- Do NOT give medicine dosage
+- Do NOT prescribe medicines
+- Do NOT give dosage
 - Use phrases like "may be related to"
 
 Explain briefly:
@@ -195,7 +197,7 @@ Reason: <short reason>
 
     ai_text = ""
 
-    # ===== GEMINI =====
+    # ===== GEMINI FIRST =====
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
@@ -210,17 +212,21 @@ Reason: <short reason>
     # ===== FALLBACK =====
     if not ai_text:
         symptoms_lower = symptoms.lower()
+        matched = False
+
         for key in COMMON_MEDICAL_ADVICE:
             if key in symptoms_lower:
                 health, doctor, reason = COMMON_MEDICAL_ADVICE[key]
+                matched = True
                 break
-        else:
+
+        if not matched:
             health = (
                 "Based on your symptoms, general medical guidance is advised. "
                 "Please rest, stay hydrated, and monitor your condition carefully."
             )
 
-    # ===== PARSE AI =====
+    # ===== PARSE AI OUTPUT =====
     if ai_text:
         for line in ai_text.splitlines():
             line = line.strip()
@@ -231,16 +237,15 @@ Reason: <short reason>
             else:
                 health += line + " "
 
-    # ===== FIX TEXT SPACING =====
-    health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
-    health = re.sub(r'\s+', ' ', health)
+    # ===== CLEAN TEXT =====
+    health = re.sub(r'\s+', ' ', health).strip()
 
     lat, lon, _ = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
 
     return render_template(
         "result.html",
-        health=health.strip(),
+        health=health,
         doctor=doctor,
         reason=reason,
         hospitals=hospitals,
