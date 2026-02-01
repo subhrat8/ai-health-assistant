@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Health Result</title>
+    <title>MedAssist AI – Result</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -16,7 +16,7 @@
         <p>Your Community Health Assistant</p>
     </div>
 
-    <!-- ASSISTANT RESPONSE -->
+    <!-- ASSISTANT -->
     <div class="card">
         <h2>🤖 Assistant</h2>
         <p id="assistant-text">{{ health }}</p>
@@ -39,6 +39,7 @@
                 <strong>{{ h.name }}</strong><br>
                 Distance: {{ h.distance }} km
             </div>
+
             <div>
                 <a class="map-btn" href="{{ h.map }}" target="_blank">Map</a>
             </div>
@@ -53,7 +54,6 @@
 
 </div>
 
-<!-- ASSISTANT TYPING SCRIPT -->
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
 
 </body>
