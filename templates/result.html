@@ -19,7 +19,11 @@
     <!-- ASSISTANT OUTPUT -->
     <div class="card assistant-card">
         <h2>🤖 AI Health Guidance</h2>
-        <p id="assistant-text">{{ health }}</p>
+
+        <!-- spacing fixed -->
+        <p id="assistant-text">
+            {{ health | replace(',', ', ') | replace('.', '. ') }}
+        </p>
     </div>
 
     <!-- DOCTOR -->
@@ -56,17 +60,19 @@
 
 <div id="chat-box">
     <div class="chat-header">MedAssist Help</div>
+
     <div class="chat-body" id="chat-body">
         <div class="bot-msg">
-            Hi 👋  
+            Hi 👋<br><br>
             I can help you with:
             <ul>
-                <li>How to use this site</li>
-                <li>Understanding results</li>
-                <li>Next steps</li>
+                <li>Understanding your results</li>
+                <li>What to do next</li>
+                <li>How this website works</li>
             </ul>
         </div>
     </div>
+
     <div class="chat-input">
         <input type="text" id="chat-input" placeholder="Type your question...">
         <button onclick="sendMessage()">➤</button>
