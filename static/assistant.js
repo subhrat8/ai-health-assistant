@@ -1,46 +1,66 @@
-// ===== DARK MODE =====
-const toggle = document.getElementById("dark-toggle");
-toggle.onclick = () => {
-    document.body.classList.toggle("dark");
-    localStorage.setItem("dark", document.body.classList.contains("dark"));
-};
+// ---------- DARK MODE ----------
+const darkToggle = document.getElementById("dark-toggle");
+if (darkToggle) {
+    darkToggle.onclick = () => {
+        document.body.classList.toggle("dark");
+        localStorage.setItem(
+            "theme",
+            document.body.classList.contains("dark") ? "dark" : "light"
+        );
+    };
 
-if (localStorage.getItem("dark") === "true") {
-    document.body.classList.add("dark");
+    if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+    }
 }
 
-// ===== VOICE SPEAK =====
-document.getElementById("speak-btn").onclick = () => {
-    const text = document.getElementById("assistant-text").innerText;
-    const msg = new SpeechSynthesisUtterance(text);
-    speechSynthesis.speak(msg);
-};
+// ---------- VOICE SPEAK ----------
+const speakBtn = document.getElementById("speak-btn");
+if (speakBtn) {
+    speakBtn.onclick = () => {
+        const text = document.getElementById("assistant-text")?.innerText;
+        if (!text) return;
 
-// ===== CHAT TOGGLE =====
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 0.95;
+        utter.pitch = 1;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utter);
+    };
+}
+
+// ---------- CHAT UI ----------
 const bubble = document.getElementById("chat-bubble");
 const box = document.getElementById("chat-box");
 
-bubble.onclick = () => box.classList.toggle("open");
+if (bubble && box) {
+    bubble.onclick = () => box.classList.toggle("open");
+}
 
-// ===== CHAT SEND =====
+// ---------- CHAT SEND ----------
 function sendMessage() {
     const input = document.getElementById("chat-input");
     const body = document.getElementById("chat-body");
 
     if (!input.value.trim()) return;
 
-    body.innerHTML += `<div class="user-msg">${input.value}</div>`;
+    const userText = input.value;
+    input.value = "";
+
+    body.innerHTML += `<div class="user-msg">${userText}</div>`;
+    body.scrollTop = body.scrollHeight;
 
     fetch("/chat", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: input.value})
+        body: JSON.stringify({message: userText})
     })
     .then(res => res.json())
     .then(data => {
         body.innerHTML += `<div class="bot-msg">${data.reply}</div>`;
         body.scrollTop = body.scrollHeight;
+    })
+    .catch(() => {
+        body.innerHTML += `<div class="bot-msg">⚠️ Unable to reply right now.</div>`;
     });
-
-    input.value = "";
 }
