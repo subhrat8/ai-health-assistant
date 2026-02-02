@@ -1,3 +1,4 @@
+/* ================= BASE ================= */
 body {
     font-family: "Segoe UI", Arial, sans-serif;
     background: #f4f8fb;
@@ -21,13 +22,22 @@ body.dark {
     margin-bottom: 30px;
 }
 
+.header h1 {
+    color: #0a5ed7;
+}
+
+body.dark .header h1 {
+    color: #7aa9ff;
+}
+
+/* ================= CARDS ================= */
 .card {
     background: white;
     border-radius: 14px;
     padding: 20px;
     margin-bottom: 20px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    transition: transform 0.3s;
+    transition: transform 0.3s, background 0.3s;
 }
 
 body.dark .card {
@@ -51,11 +61,20 @@ body.dark .card {
     color: #1a9c3c;
 }
 
+body.dark .doctor-name {
+    color: #5edc8c;
+}
+
+/* ================= HOSPITAL LIST ================= */
 .hospital {
     display: flex;
     justify-content: space-between;
     border-bottom: 1px solid #eee;
     padding: 10px 0;
+}
+
+body.dark .hospital {
+    border-bottom: 1px solid #333;
 }
 
 .map-btn {
@@ -64,11 +83,17 @@ body.dark .card {
     padding: 6px 12px;
     border-radius: 6px;
     text-decoration: none;
+    transition: background 0.3s;
 }
 
+.map-btn:hover {
+    background: #084bb5;
+}
+
+/* ================= SEARCH AGAIN ================= */
 .search-again {
     text-align: center;
-    margin-top: 30px;
+    margin-top: 25px;
 }
 
 .search-again a {
@@ -77,29 +102,41 @@ body.dark .card {
     padding: 12px 25px;
     border-radius: 10px;
     text-decoration: none;
+    font-size: 15px;
 }
 
-/* TOP BUTTONS */
-.top-actions {
+/* ================= DARK MODE TOGGLE ================= */
+#dark-toggle {
     position: fixed;
-    top: 15px;
+    top: 20px;
     right: 20px;
-    display: flex;
-    gap: 10px;
-}
-
-.top-actions button {
-    border: none;
     background: #0a5ed7;
     color: white;
-    font-size: 18px;
+    padding: 10px 14px;
     border-radius: 50%;
-    width: 42px;
-    height: 42px;
     cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    font-size: 18px;
+    z-index: 1000;
 }
 
-/* FLOATING CHAT */
+/* ================= VOICE BUTTON ================= */
+#voice-btn {
+    margin-top: 10px;
+    background: #1a9c3c;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+#voice-btn:hover {
+    background: #168732;
+}
+
+/* ================= FLOATING CHAT (IRCTC STYLE) ================= */
 #chat-bubble {
     position: fixed;
     bottom: 25px;
@@ -113,19 +150,26 @@ body.dark .card {
     text-align: center;
     line-height: 55px;
     cursor: pointer;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    z-index: 1000;
 }
 
 #chat-box {
     position: fixed;
-    bottom: 90px;
+    bottom: 95px;
     right: 25px;
-    width: 300px;
+    width: 320px;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.3);
     display: none;
     flex-direction: column;
+    animation: slideUp 0.3s ease;
+    z-index: 1000;
+}
+
+body.dark #chat-box {
+    background: #1e1e1e;
 }
 
 #chat-box.open {
@@ -135,14 +179,50 @@ body.dark .card {
 .chat-header {
     background: #0a5ed7;
     color: white;
-    padding: 10px;
-    border-radius: 12px 12px 0 0;
+    padding: 12px;
+    font-weight: bold;
+    border-radius: 14px 14px 0 0;
 }
 
 .chat-body {
     padding: 10px;
-    max-height: 250px;
+    max-height: 260px;
     overflow-y: auto;
+    font-size: 14px;
+}
+
+.chat-input {
+    display: flex;
+    border-top: 1px solid #ddd;
+}
+
+body.dark .chat-input {
+    border-top: 1px solid #333;
+}
+
+.chat-input input {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    outline: none;
+}
+
+.chat-input button {
+    border: none;
+    background: #0a5ed7;
+    color: white;
+    padding: 0 15px;
+    cursor: pointer;
+}
+
+.user-msg {
+    text-align: right;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+body.dark .user-msg {
+    color: #ddd;
 }
 
 .bot-msg {
@@ -152,7 +232,18 @@ body.dark .card {
     margin-bottom: 8px;
 }
 
-.user-msg {
-    text-align: right;
-    margin-bottom: 8px;
+body.dark .bot-msg {
+    background: #2b2b2b;
+}
+
+/* ================= ANIMATIONS ================= */
+@keyframes slideUp {
+    from {
+        transform: translateY(15px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
