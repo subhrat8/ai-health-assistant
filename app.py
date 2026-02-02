@@ -16,6 +16,7 @@ GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
 ]
+
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # ================= LANGUAGE =================
@@ -27,7 +28,7 @@ def language_name(code):
         "ta-IN": "Tamil"
     }.get(code, "English")
 
-# ================= FALLBACK MEDICAL SYSTEM =================
+# ================= LOCAL MEDICAL FALLBACK =================
 COMMON_MEDICAL_ADVICE = {
     "fever": (
         "Fever may be related to infection or seasonal illness. Rest well, stay hydrated, and monitor body temperature.",
@@ -65,7 +66,8 @@ def get_coordinates(city):
             return float(data[0]["lat"]), float(data[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629
+    return 20.5937, 78.9629  # India fallback
+
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -79,8 +81,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
+
 def get_nearby_hospitals(lat, lon):
     hospitals = []
+
     query = f"""
     [out:json];
     (
@@ -89,6 +93,7 @@ def get_nearby_hospitals(lat, lon):
     );
     out;
     """
+
     try:
         res = requests.post(
             "https://overpass-api.de/api/interpreter",
@@ -96,22 +101,27 @@ def get_nearby_hospitals(lat, lon):
             timeout=15
         )
         data = res.json()
+
         for item in data.get("elements", []):
             name = item.get("tags", {}).get("name")
             if name and item.get("lat") and item.get("lon"):
                 hospitals.append({
                     "name": name,
-                    "distance": calculate_distance(lat, lon, item["lat"], item["lon"]),
+                    "distance": calculate_distance(
+                        lat, lon, item["lat"], item["lon"]
+                    ),
                     "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
                 })
     except:
         pass
+
     return hospitals[:5]
 
 # ================= GROK SAFE CALL =================
 def ask_grok(prompt):
     if not GROK_API_KEY:
         return ""
+
     try:
         res = requests.post(
             "https://api.x.ai/v1/chat/completions",
@@ -135,11 +145,14 @@ def ask_grok(prompt):
 def home():
     return render_template("index.html")
 
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
+
     city = request.form.get("city", "")
     symptoms = request.form.get("symptoms", "")
     language = request.form.get("language", "en-US")
+
     lang = language_name(language)
 
     health = ""
@@ -169,7 +182,7 @@ Reason: <short reason>
 
     ai_text = ""
 
-    # ===== GEMINI MULTI-KEY =====
+    # ===== GEMINI MULTI-KEY FALLBACK =====
     for key in GEMINI_KEYS:
         if not key:
             continue
@@ -200,7 +213,7 @@ Reason: <short reason>
                 "Please rest, stay hydrated, and monitor your condition carefully."
             )
 
-    # ===== PARSE AI =====
+    # ===== PARSE AI OUTPUT =====
     if ai_text:
         for line in ai_text.splitlines():
             line = line.strip()
@@ -225,6 +238,7 @@ Reason: <short reason>
         reason=reason,
         hospitals=hospitals
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
