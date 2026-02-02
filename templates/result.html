@@ -8,7 +8,7 @@
 
 <body>
 
-<!-- DARK MODE & SPEAK -->
+<!-- TOP CONTROLS -->
 <button id="dark-toggle">🌙</button>
 <button id="speak-btn">🔊</button>
 
@@ -26,60 +26,22 @@
         <p id="assistant-text">{{ health }}</p>
     </div>
 
-    <!-- DOCTOR RECOMMENDATION -->
+    <!-- DOCTOR -->
     <div class="card doctor-box">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p class="doctor-name">{{ doctor }}</p>
         <p>{{ reason }}</p>
     </div>
 
-    <!-- MEDICAL PLACES -->
+    <!-- SORT -->
     <div class="card">
-        <h2>🏥 Nearby Doctors & Hospitals</h2>
-
-        {% if medical_places %}
-            {% for p in medical_places %}
-            <div class="hospital">
-                <div>
-                    <strong>{{ p.name }}</strong><br>
-                    <small>
-                        {{ p.type }} • {{ p.specialty }}<br>
-                        {{ p.distance }} km away
-                    </small>
-                </div>
-                <a class="map-btn" href="{{ p.map }}" target="_blank">Map</a>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p>No nearby medical facilities found.</p>
-        {% endif %}
+        <label><strong>Sort by:</strong></label>
+        <select id="sortSelect" onchange="sortPlaces()">
+            <option value="distance">Distance</option>
+            <option value="type">Type</option>
+        </select>
     </div>
 
-    <!-- SEARCH AGAIN -->
-    <div class="search-again">
-        <a href="/">🔁 Search Again</a>
-    </div>
-
-</div>
-
-<!-- FLOATING CHAT -->
-<div id="chat-bubble">💬</div>
-
-<div id="chat-box">
-    <div class="chat-header">MedAssist Help</div>
-    <div class="chat-body" id="chat-body">
-        <div class="bot-msg">
-            Hi 👋<br>
-            I can help you understand results, medicines, doctors, or next steps.
-        </div>
-    </div>
-    <div class="chat-input">
-        <input type="text" id="chat-input" placeholder="Ask something...">
-        <button onclick="sendMessage()">➤</button>
-    </div>
-</div>
-
-<script src="{{ url_for('static', filename='assistant.js') }}"></script>
-
-</body>
-</html>
+    <!-- MEDICAL PLACES -->
+    <div class="card" id="places-container">
+        <h2>🏥 Nearby Medical
