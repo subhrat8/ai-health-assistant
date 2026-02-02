@@ -8,41 +8,34 @@
 
 <body>
 
-<!-- DARK MODE TOGGLE -->
-<div class="top-actions">
-    <button id="darkToggle">🌙</button>
-    <button id="speakBtn">🔊</button>
-</div>
+<button id="dark-toggle">🌙</button>
+<button id="speak-btn">🔊</button>
 
 <div class="container">
 
-    <div class="header fade-in">
+    <div class="header">
         <h1>🩺 MedAssist AI</h1>
         <p>Your Community Health Assistant</p>
     </div>
 
-    <!-- ASSISTANT -->
-    <div class="card assistant-card slide-up">
+    <div class="card">
         <h2>🤖 AI Health Guidance</h2>
         <p id="assistant-text">{{ health }}</p>
     </div>
 
-    <!-- DOCTOR -->
-    <div class="card doctor-box slide-up">
+    <div class="card doctor-box">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p class="doctor-name">{{ doctor }}</p>
-        <p class="doctor-reason">{{ reason }}</p>
+        <p>{{ reason }}</p>
     </div>
 
-    <!-- HOSPITALS -->
-    <div class="card slide-up">
-        <h2>🏥 Nearby Hospitals (within 30 km)</h2>
-
+    <div class="card">
+        <h2>🏥 Nearby Hospitals</h2>
         {% for h in hospitals %}
         <div class="hospital">
             <div>
                 <strong>{{ h.name }}</strong><br>
-                Distance: {{ h.distance }} km
+                {{ h.distance }} km
             </div>
             <a class="map-btn" href="{{ h.map }}" target="_blank">Map</a>
         </div>
@@ -55,24 +48,14 @@
 
 </div>
 
-<!-- FLOATING ASSISTANT -->
+<!-- FLOATING CHAT -->
 <div id="chat-bubble">💬</div>
 
 <div id="chat-box">
-    <div class="chat-header">MedAssist Assistant</div>
-    <div class="chat-body" id="chat-body">
-        <div class="bot-msg">
-            Hi 👋<br><br>
-            I can help you with:
-            <ul>
-                <li>Understanding results</li>
-                <li>Next steps</li>
-                <li>How to use this site</li>
-            </ul>
-        </div>
-    </div>
+    <div class="chat-header">MedAssist Help</div>
+    <div class="chat-body" id="chat-body"></div>
     <div class="chat-input">
-        <input type="text" id="chat-input" placeholder="Type your question...">
+        <input type="text" id="chat-input" placeholder="Ask something...">
         <button onclick="sendMessage()">➤</button>
     </div>
 </div>
