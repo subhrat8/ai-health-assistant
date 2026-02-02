@@ -8,19 +8,20 @@
 
 <body>
 
-<!-- TOP ACTION BUTTONS -->
-<button id="dark-toggle" title="Toggle Dark Mode">🌙</button>
-<button id="speak-btn" title="Read Aloud">🔊</button>
+<!-- TOP CONTROLS -->
+<div class="top-controls">
+    <button id="dark-toggle" title="Toggle Dark Mode">🌙</button>
+    <button id="speak-btn" title="Read Aloud">🔊</button>
+</div>
 
 <div class="container">
 
-    <!-- HEADER -->
     <div class="header">
         <h1>🩺 MedAssist AI</h1>
         <p>Your Community Health Assistant</p>
     </div>
 
-    <!-- AI GUIDANCE -->
+    <!-- AI OUTPUT -->
     <div class="card assistant-card">
         <h2>🤖 AI Health Guidance</h2>
         <p id="assistant-text">{{ health }}</p>
@@ -35,51 +36,30 @@
 
     <!-- HOSPITALS -->
     <div class="card">
-        <h2>🏥 Nearby Hospitals (within 30 km)</h2>
-
-        {% if hospitals and hospitals|length > 0 %}
-            {% for h in hospitals %}
-            <div class="hospital">
-                <div>
-                    <strong>{{ h.name }}</strong><br>
-                    Distance: {{ h.distance }} km
-                </div>
-                <a class="map-btn" href="{{ h.map }}" target="_blank">Map</a>
+        <h2>🏥 Nearby Hospitals</h2>
+        {% for h in hospitals %}
+        <div class="hospital">
+            <div>
+                <strong>{{ h.name }}</strong><br>
+                {{ h.distance }} km
             </div>
-            {% endfor %}
-        {% else %}
-            <p style="color:#777; font-size:14px;">
-                ⚠️ Unable to fetch nearby hospitals right now.<br>
-                Please try again later or check Google Maps.
-            </p>
-        {% endif %}
+            <a class="map-btn" href="{{ h.map }}" target="_blank">Map</a>
+        </div>
+        {% endfor %}
     </div>
 
-    <!-- SEARCH AGAIN -->
     <div class="search-again">
         <a href="/">🔁 Search Again</a>
     </div>
 
 </div>
 
-<!-- FLOATING CHAT ASSISTANT -->
-<div id="chat-bubble" title="Need help?">💬</div>
+<!-- FLOATING CHAT -->
+<div id="chat-bubble">💬</div>
 
 <div id="chat-box">
     <div class="chat-header">MedAssist Help</div>
-
-    <div class="chat-body" id="chat-body">
-        <div class="bot-msg">
-            Hi 👋<br>
-            I can help you with:
-            <ul>
-                <li>Understanding results</li>
-                <li>Using this website</li>
-                <li>Next steps</li>
-            </ul>
-        </div>
-    </div>
-
+    <div class="chat-body" id="chat-body"></div>
     <div class="chat-input">
         <input type="text" id="chat-input" placeholder="Ask something...">
         <button onclick="sendMessage()">➤</button>
