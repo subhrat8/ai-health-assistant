@@ -8,33 +8,34 @@
 
 <body>
 
+<!-- DARK MODE TOGGLE -->
+<div class="top-actions">
+    <button id="darkToggle">🌙</button>
+    <button id="speakBtn">🔊</button>
+</div>
+
 <div class="container">
 
-    <!-- HEADER -->
-    <div class="header">
+    <div class="header fade-in">
         <h1>🩺 MedAssist AI</h1>
         <p>Your Community Health Assistant</p>
     </div>
 
-    <!-- ASSISTANT OUTPUT -->
-    <div class="card assistant-card">
+    <!-- ASSISTANT -->
+    <div class="card assistant-card slide-up">
         <h2>🤖 AI Health Guidance</h2>
-
-        <!-- spacing fixed -->
-        <p id="assistant-text">
-            {{ health | replace(',', ', ') | replace('.', '. ') }}
-        </p>
+        <p id="assistant-text">{{ health }}</p>
     </div>
 
     <!-- DOCTOR -->
-    <div class="card doctor-box">
+    <div class="card doctor-box slide-up">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p class="doctor-name">{{ doctor }}</p>
         <p class="doctor-reason">{{ reason }}</p>
     </div>
 
     <!-- HOSPITALS -->
-    <div class="card">
+    <div class="card slide-up">
         <h2>🏥 Nearby Hospitals (within 30 km)</h2>
 
         {% for h in hospitals %}
@@ -48,7 +49,6 @@
         {% endfor %}
     </div>
 
-    <!-- SEARCH AGAIN -->
     <div class="search-again">
         <a href="/">🔁 Search Again</a>
     </div>
@@ -59,20 +59,18 @@
 <div id="chat-bubble">💬</div>
 
 <div id="chat-box">
-    <div class="chat-header">MedAssist Help</div>
-
+    <div class="chat-header">MedAssist Assistant</div>
     <div class="chat-body" id="chat-body">
         <div class="bot-msg">
             Hi 👋<br><br>
             I can help you with:
             <ul>
-                <li>Understanding your results</li>
-                <li>What to do next</li>
-                <li>How this website works</li>
+                <li>Understanding results</li>
+                <li>Next steps</li>
+                <li>How to use this site</li>
             </ul>
         </div>
     </div>
-
     <div class="chat-input">
         <input type="text" id="chat-input" placeholder="Type your question...">
         <button onclick="sendMessage()">➤</button>
@@ -80,6 +78,5 @@
 </div>
 
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
-
 </body>
 </html>
