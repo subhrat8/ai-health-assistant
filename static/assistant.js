@@ -1,38 +1,49 @@
-// ===== Floating assistant =====
-const bubble = document.getElementById("chat-bubble");
-const box = document.getElementById("chat-box");
+document.addEventListener("DOMContentLoaded", () => {
 
-if (bubble) {
-  bubble.onclick = () => box.classList.toggle("open");
-}
-
-// ===== Voice speak =====
-function speak(text){
-    const msg = new SpeechSynthesisUtterance(text);
-    msg.rate = 0.95;
-    speechSynthesis.speak(msg);
-}
-
-// ===== Save history =====
-function saveHistory(data){
-    let h = JSON.parse(localStorage.getItem("history") || "[]");
-    h.unshift(data);
-    localStorage.setItem("history", JSON.stringify(h.slice(0,5)));
-}
-
-// ===== Type animation =====
-const el = document.getElementById("assistant-text");
-if(el){
-    const txt = el.innerText;
-    el.innerText = "";
-    let i=0;
-    function t(){
-        if(i<txt.length){
-            el.innerText += txt[i++];
-            setTimeout(t,20);
-        }
+    // Typing effect
+    const textEl = document.getElementById("assistant-text");
+    if (textEl) {
+        const text = textEl.innerText;
+        textEl.innerText = "";
+        let i = 0;
+        const type = () => {
+            if (i < text.length) {
+                textEl.innerText += text.charAt(i++);
+                setTimeout(type, 20);
+            }
+        };
+        type();
     }
-    t();
-    speak(txt);
-    saveHistory(txt);
+
+    // Dark mode
+    const darkToggle = document.getElementById("darkToggle");
+    if (localStorage.getItem("dark") === "true") {
+        document.body.classList.add("dark");
+    }
+
+    darkToggle.onclick = () => {
+        document.body.classList.toggle("dark");
+        localStorage.setItem("dark", document.body.classList.contains("dark"));
+    };
+
+    // Voice speak
+    document.getElementById("speakBtn").onclick = () => {
+        const msg = new SpeechSynthesisUtterance(textEl.innerText);
+        speechSynthesis.speak(msg);
+    };
+
+    // Floating chat
+    const bubble = document.getElementById("chat-bubble");
+    const box = document.getElementById("chat-box");
+    bubble.onclick = () => box.classList.toggle("open");
+});
+
+function sendMessage() {
+    const input = document.getElementById("chat-input");
+    const body = document.getElementById("chat-body");
+    if (!input.value) return;
+
+    body.innerHTML += `<div class="user-msg">${input.value}</div>`;
+    body.innerHTML += `<div class="bot-msg">I’m here to help 🙂. This assistant helps with site usage and guidance.</div>`;
+    input.value = "";
 }
