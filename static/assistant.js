@@ -1,108 +1,107 @@
-/* ================= TEXT TO SPEECH ================= */
-let synth = window.speechSynthesis;
-
-function speakText(text) {
-    if (!text || !synth) return;
-    synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.95;
-    utter.pitch = 1;
-    synth.speak(utter);
-}
-
-/* ================= READ RESULT ================= */
+// ================= SAFE DOM READY =================
 document.addEventListener("DOMContentLoaded", () => {
+
+    // ---------- ELEMENTS ----------
+    const chatBubble = document.getElementById("chat-bubble");
+    const chatBox = document.getElementById("chat-box");
+    const chatBody = document.getElementById("chat-body");
+    const chatInput = document.getElementById("chat-input");
+    const darkToggle = document.getElementById("dark-toggle");
     const speakBtn = document.getElementById("speak-btn");
-    const text = document.getElementById("assistant-text");
+    const assistantText = document.getElementById("assistant-text");
 
-    if (speakBtn && text) {
-        speakBtn.onclick = () => speakText(text.innerText);
+    // ---------- SPEECH ----------
+    const synth = window.speechSynthesis;
+
+    function speakText(text) {
+        if (!text || !synth) return;
+        synth.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 0.95;
+        utter.pitch = 1;
+        synth.speak(utter);
     }
 
-    // Dark mode persistence
-    if (localStorage.getItem("darkMode") === "true") {
-        document.body.classList.add("dark");
-    }
-});
-
-/* ================= DARK MODE ================= */
-const darkToggle = document.getElementById("dark-toggle");
-if (darkToggle) {
-    darkToggle.onclick = () => {
-        document.body.classList.toggle("dark");
-        localStorage.setItem(
-            "darkMode",
-            document.body.classList.contains("dark")
-        );
-    };
-}
-
-/* ================= CHAT ================= */
-const chatBubble = document.getElementById("chat-bubble");
-const chatBox = document.getElementById("chat-box");
-const chatBody = document.getElementById("chat-body");
-const chatInput = document.getElementById("chat-input");
-
-if (chatBubble) {
-    chatBubble.onclick = () => chatBox.classList.toggle("open");
-}
-
-function addMessage(text, sender) {
-    const div = document.createElement("div");
-    div.className = sender === "user" ? "user-msg" : "bot-msg";
-    div.innerText = text;
-    chatBody.appendChild(div);
-    chatBody.scrollTop = chatBody.scrollHeight;
-
-    if (sender === "bot") speakText(text);
-}
-
-function sendMessage() {
-    const msg = chatInput.value.trim();
-    if (!msg) return;
-
-    addMessage(msg, "user");
-    chatInput.value = "";
-
-    fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
-    })
-    .then(res => res.json())
-    .then(data => addMessage(data.reply, "bot"))
-    .catch(() => addMessage("Service unavailable.", "bot"));
-}
-
-/* ================= VOICE INPUT ================= */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition;
-
-if (SpeechRecognition) {
-    recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.onresult = e => {
-        chatInput.value = e.results[0][0].transcript;
-        sendMessage();
-    };
-}
-
-function startVoice() {
-    if (recognition) recognition.start();
-}
-
-/* ================= SORT ================= */
-function sortPlaces() {
-    const container = document.getElementById("places-container");
-    const items = Array.from(container.querySelectorAll(".hospital"));
-    const mode = document.getElementById("sortSelect").value;
-
-    items.sort((a, b) => {
-        if (mode === "distance") {
-            return a.dataset.distance - b.dataset.distance;
+    // ---------- DARK MODE ----------
+    if (darkToggle) {
+        if (localStorage.getItem("darkMode") === "true") {
+            document.body.classList.add("dark");
         }
-        return a.dataset.type.localeCompare(b.dataset.type);
-    });
+        darkToggle.onclick = () => {
+            document.body.classList.toggle("dark");
+            localStorage.setItem(
+                "darkMode",
+                document.body.classList.contains("dark")
+            );
+        };
+    }
 
-    items.forEach(el => container.appendChild(el));
-}
+    // ---------- READ RESULT ----------
+    if (speakBtn && assistantText) {
+        speakBtn.onclick = () => speakText(assistantText.innerText);
+    }
+
+    // ---------- CHAT OPEN ----------
+    if (chatBubble && chatBox) {
+        chatBubble.onclick = () => {
+            chatBox.classList.toggle("open");
+            if (chatBody.children.length === 0) {
+                addMessage(
+                    "Hi 👋 I’m MedAssist.\n\nI can:\n• Explain your results\n• Suggest next steps\n• Share general health info\n\nAsk me anything.",
+                    "bot"
+                );
+            }
+        };
+    }
+
+    // ---------- ADD MESSAGE ----------
+    function addMessage(text, sender) {
+        const msg = document.createElement("div");
+        msg.className = sender === "user" ? "user-msg" : "bot-msg";
+        msg.innerText = text;
+        chatBody.appendChild(msg);
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        if (sender === "bot") {
+            speakText(text);
+        }
+    }
+
+    // ---------- SEND MESSAGE ----------
+    window.sendMessage = function () {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        addMessage(text, "user");
+        chatInput.value = "";
+
+        fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        })
+        .then(res => res.json())
+        .then(data => {
+            addMessage(
+                data.reply || "I’m here to help. Please try again.",
+                "bot"
+            );
+        })
+        .catch(() => {
+            addMessage(
+                "⚠️ Service temporarily unavailable. Please try again.",
+                "bot"
+            );
+        });
+    };
+
+    // ---------- ENTER KEY ----------
+    if (chatInput) {
+        chatInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+    }
+
+});
