@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+# ================= LOAD ENV =================
 load_dotenv()
 app = Flask(__name__)
 
@@ -15,6 +16,7 @@ GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
 ]
+
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # ================= LANGUAGE =================
@@ -35,22 +37,29 @@ def get_coordinates(city):
             headers={"User-Agent": "medassist"},
             timeout=10
         )
-        d = r.json()
-        if d:
-            return float(d[0]["lat"]), float(d[0]["lon"])
-    except:
-        pass
-    return 20.5937, 78.9629
+        data = r.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception as e:
+        print("Location error:", e)
 
-def calculate_distance(a,b,c,d):
+    return 20.5937, 78.9629  # India fallback
+
+def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
-    dlat = math.radians(c-a)
-    dlon = math.radians(d-b)
-    x = math.sin(dlat/2)**2 + math.cos(math.radians(a))*math.cos(math.radians(c))*math.sin(dlon/2)**2
-    return round(2*R*math.atan2(math.sqrt(x),math.sqrt(1-x)),2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dlat / 2) ** 2 +
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
+        math.sin(dlon / 2) ** 2
+    )
+    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
 def get_nearby_hospitals(lat, lon):
     hospitals = []
+
     query = f"""
     [out:json];
     (
@@ -59,22 +68,36 @@ def get_nearby_hospitals(lat, lon):
     );
     out;
     """
+
     try:
-        r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+        r = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=15
+        )
         data = r.json()
-        for e in data.get("elements", []):
-            if e.get("tags", {}).get("name"):
+
+        for item in data.get("elements", []):
+            name = item.get("tags", {}).get("name")
+            if name and item.get("lat") and item.get("lon"):
                 hospitals.append({
-                    "name": e["tags"]["name"],
-                    "distance": calculate_distance(lat, lon, e["lat"], e["lon"]),
-                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}"
+                    "name": name,
+                    "distance": calculate_distance(
+                        lat, lon, item["lat"], item["lon"]
+                    ),
+                    "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
                 })
-    except:
-        pass
+
+    except Exception as e:
+        print("Hospital API error:", e)
+
     return hospitals[:5]
 
 # ================= GROK CHAT =================
 def ask_grok(prompt):
+    if not GROK_API_KEY:
+        return "I can help explain results or guide next steps."
+
     try:
         r = requests.post(
             "https://api.x.ai/v1/chat/completions",
@@ -88,8 +111,11 @@ def ask_grok(prompt):
             },
             timeout=25
         )
-        return r.json()["choices"][0]["message"]["content"]
-    except:
+        data = r.json()
+        return data["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        print("Grok error:", e)
         return "I can help explain results or guide next steps."
 
 # ================= ROUTES =================
@@ -99,9 +125,11 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    city = request.form.get("city","")
-    symptoms = request.form.get("symptoms","")
-    lang = language_name(request.form.get("language","en-US"))
+    city = request.form.get("city", "")
+    symptoms = request.form.get("symptoms", "")
+    language = request.form.get("language", "en-US")
+
+    lang = language_name(language)
 
     health = ""
     doctor = "General Physician"
@@ -114,52 +142,62 @@ Symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-Do NOT diagnose.
-Do NOT give dosage.
+
+Rules:
+- Do NOT diagnose diseases
+- Do NOT give dosage
+- Use wording like "may be related to"
 
 Include:
-• Possible cause (may be related to)
+• Possible cause
 • Home care
-• When to see doctor
+• When to see a doctor
 • Commonly used medicines (names only)
 
-End with:
+End strictly with:
 Doctor: <specialist>
 Reason: <short reason>
 
-Always add:
+Always include:
 "A doctor decides suitability and dosage based on age and health."
 """
 
     ai_text = ""
 
+    # ===== GEMINI MULTI-KEY FALLBACK =====
     for key in GEMINI_KEYS:
-        if not key: continue
+        if not key:
+            continue
         try:
             genai.configure(api_key=key)
             model = genai.GenerativeModel("gemini-1.5-flash")
-            res = model.generate_content(prompt)
-            ai_text = (res.text or "").strip()
+            response = model.generate_content(prompt)
+            ai_text = (response.text or "").strip()
             if ai_text:
                 break
-        except:
-            continue
+        except Exception as e:
+            print("Gemini error:", e)
 
+    # ===== PARSE AI RESPONSE =====
     if ai_text:
         for line in ai_text.splitlines():
+            line = line.strip()
             if line.lower().startswith("doctor:"):
-                doctor = line.split(":",1)[1].strip()
+                doctor = line.split(":", 1)[1].strip()
             elif line.lower().startswith("reason:"):
-                reason = line.split(":",1)[1].strip()
+                reason = line.split(":", 1)[1].strip()
             else:
                 health += line + " "
 
-    health = re.sub(r'\s+', ' ', health)
+    # ===== CLEAN TEXT =====
+    health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
+    health = re.sub(r'\s+', ' ', health).strip()
 
     lat, lon = get_coordinates(city)
     hospitals = get_nearby_hospitals(lat, lon)
 
-    return render_template("result.html",
+    return render_template(
+        "result.html",
         health=health,
         doctor=doctor,
         reason=reason,
@@ -169,16 +207,16 @@ Always add:
 # ================= CHAT API =================
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_msg = request.json.get("message","")
+    user_msg = request.json.get("message", "")
 
     prompt = f"""
 You are MedAssist Help Assistant.
 
 Rules:
-- General medical info only
-- Medicine names allowed, NO dosage
-- Suggest next steps/tests
-- Never diagnose
+- General medical information only
+- Medicine names allowed (NO dosage)
+- Suggest next steps, tests, doctor visit
+- Never diagnose diseases
 
 User question:
 {user_msg}
@@ -187,5 +225,6 @@ User question:
     reply = ask_grok(prompt)
     return jsonify({"reply": reply})
 
+# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
