@@ -11,8 +11,12 @@ load_dotenv()
 app = Flask(__name__)
 
 # ================= API KEYS =================
-GEMINI_API_KEY_1 = os.getenv("GEMINI_API_KEY")
-GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2")
+GEMINI_KEYS = [
+    os.getenv("GEMINI_API_KEY"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3"),
+]
+
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # ================= LANGUAGE =================
@@ -24,25 +28,53 @@ def language_name(code):
         "ta-IN": "Tamil"
     }.get(code, "English")
 
-# ================= HOSPITAL RATING =================
-def hospital_rating(name):
-    return round(3.5 + (sum(ord(c) for c in name) % 15) / 10, 1)
+
+# ================= LOCAL FALLBACK =================
+COMMON_MEDICAL_ADVICE = {
+    "fever": (
+        "Fever may be related to infection or seasonal illness. Rest well, stay hydrated, and monitor temperature.",
+        "General Physician",
+        "Evaluation of infection recommended"
+    ),
+    "headache": (
+        "Headache may occur due to stress, dehydration, or lack of sleep.",
+        "General Physician",
+        "Basic medical assessment"
+    ),
+    "stomach": (
+        "Stomach pain may be related to indigestion, acidity, or food-related infection.",
+        "Gastroenterologist",
+        "Digestive system evaluation"
+    ),
+    "cough": (
+        "Cough is commonly linked to cold or throat irritation.",
+        "General Physician",
+        "Respiratory assessment"
+    ),
+    "pain": (
+        "Body pain may occur due to fatigue or muscle strain.",
+        "General Physician",
+        "Physical examination recommended"
+    )
+}
+
 
 # ================= LOCATION =================
 def get_coordinates(city):
     try:
-        res = requests.get(
+        r = requests.get(
             "https://nominatim.openstreetmap.org/search",
             params={"q": city, "format": "json", "limit": 1},
             headers={"User-Agent": "medassist-app"},
             timeout=10
         )
-        data = res.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
+        d = r.json()
+        if d:
+            return float(d[0]["lat"]), float(d[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629  # India fallback
+    return 20.5937, 78.9629
+
 
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -56,8 +88,10 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
+
 def get_nearby_hospitals(lat, lon):
     hospitals = []
+
     query = f"""
     [out:json];
     (
@@ -68,12 +102,12 @@ def get_nearby_hospitals(lat, lon):
     """
 
     try:
-        res = requests.post(
+        r = requests.post(
             "https://overpass-api.de/api/interpreter",
             data=query,
             timeout=15
         )
-        data = res.json()
+        data = r.json()
 
         for item in data.get("elements", []):
             name = item.get("tags", {}).get("name")
@@ -81,7 +115,6 @@ def get_nearby_hospitals(lat, lon):
                 hospitals.append({
                     "name": name,
                     "distance": calculate_distance(lat, lon, item["lat"], item["lon"]),
-                    "rating": hospital_rating(name),
                     "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
                 })
     except:
@@ -89,35 +122,34 @@ def get_nearby_hospitals(lat, lon):
 
     return hospitals[:5]
 
-# ================= AI HELPERS =================
-def ask_gemini(prompt, api_key):
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return response.text.strip()
 
+# ================= GROK =================
 def ask_grok(prompt):
     headers = {
         "Authorization": f"Bearer {GROK_API_KEY}",
         "Content-Type": "application/json"
     }
+
     payload = {
         "model": "grok-1",
         "messages": [{"role": "user", "content": prompt}]
     }
-    res = requests.post(
+
+    r = requests.post(
         "https://api.x.ai/v1/chat/completions",
         headers=headers,
         json=payload,
         timeout=25
     )
-    data = res.json()
-    return data["choices"][0]["message"]["content"]
+
+    return r.json()["choices"][0]["message"]["content"]
+
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
+
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -157,23 +189,40 @@ Reason: <short reason>
 
     ai_text = ""
 
-    # ===== GEMINI KEY 1 =====
-    try:
-        ai_text = ask_gemini(prompt, GEMINI_API_KEY_1)
-
-    # ===== GEMINI KEY 2 =====
-    except:
+    # ===== GEMINI (MULTI-KEY FAILOVER) =====
+    for key in GEMINI_KEYS:
+        if not key:
+            continue
         try:
-            ai_text = ask_gemini(prompt, GEMINI_API_KEY_2)
-
-        # ===== GROK =====
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            ai_text = model.generate_content(prompt).text.strip()
+            if ai_text:
+                break
         except:
-            try:
-                ai_text = ask_grok(prompt)
-            except:
-                ai_text = ""
+            continue
 
-    # ===== PARSE AI =====
+    # ===== GROK =====
+    if not ai_text:
+        try:
+            ai_text = ask_grok(prompt)
+        except:
+            ai_text = ""
+
+    # ===== LOCAL FALLBACK =====
+    if not ai_text:
+        s = symptoms.lower()
+        for k in COMMON_MEDICAL_ADVICE:
+            if k in s:
+                health, doctor, reason = COMMON_MEDICAL_ADVICE[k]
+                break
+        else:
+            health = (
+                "Based on your symptoms, general medical guidance is advised. "
+                "Please rest, stay hydrated, and monitor your condition."
+            )
+
+    # ===== PARSE AI TEXT =====
     if ai_text:
         for line in ai_text.splitlines():
             line = line.strip()
@@ -184,28 +233,23 @@ Reason: <short reason>
             else:
                 health += line + " "
 
-    if not health:
-        health = (
-            "Based on your symptoms, general medical guidance is advised. "
-            "Please rest, stay hydrated, and monitor your condition."
-        )
-
-    # Fix spacing
+    # ===== TEXT CLEANUP =====
     health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
     health = re.sub(r'\s+', ' ', health)
 
     lat, lon = get_coordinates(city)
-    hospital_list = get_nearby_hospitals(lat, lon)
+    hospitals = get_nearby_hospitals(lat, lon)
 
     return render_template(
         "result.html",
         health=health.strip(),
         doctor=doctor,
         reason=reason,
-        hospitals=hospital_list,
+        hospitals=hospitals,
         searched_city=city,
         searched_symptoms=symptoms
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
