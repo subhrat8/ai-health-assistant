@@ -86,6 +86,7 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 def get_nearby_hospitals(lat, lon):
     hospitals = []
+
     query = f"""
     [out:json];
     (
@@ -94,6 +95,7 @@ def get_nearby_hospitals(lat, lon):
     );
     out;
     """
+
     try:
         res = requests.post(
             "https://overpass-api.de/api/interpreter",
@@ -101,8 +103,92 @@ def get_nearby_hospitals(lat, lon):
             timeout=15
         )
         data = res.json()
+
         for item in data.get("elements", []):
-            if item.get("tags", {}).get("name"):
+            name = item.get("tags", {}).get("name")
+            if name and item.get("lat") and item.get("lon"):
                 hospitals.append({
-                    "name": item["tags"]["name"],
-                    "distance
+                    "name": name,
+                    "distance": calculate_distance(
+                        lat, lon, item["lat"], item["lon"]
+                    ),
+                    "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
+                })
+    except:
+        pass
+
+    return hospitals[:5]
+
+
+# ================= GROK CHAT =================
+def ask_grok(prompt):
+    headers = {
+        "Authorization": f"Bearer {GROK_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "grok-1",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+
+    res = requests.post(
+        "https://api.x.ai/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=25
+    )
+
+    return res.json()["choices"][0]["message"]["content"]
+
+
+# ================= HOME =================
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("index.html")
+
+
+# ================= ANALYZE =================
+@app.route("/analyze", methods=["POST"])
+def analyze():
+
+    city = request.form.get("city", "")
+    symptoms = request.form.get("symptoms", "")
+    language = request.form.get("language", "en-US")
+
+    lang = language_name(language)
+
+    health = ""
+    doctor = "General Physician"
+    reason = "Initial consultation recommended"
+
+    prompt = f"""
+You are a medical information assistant.
+
+Patient symptoms:
+{symptoms}
+
+Reply ONLY in {lang}.
+
+Rules:
+- Do NOT diagnose disease
+- Do NOT prescribe medicines or dosage
+- Use wording like "may be related to"
+
+Explain briefly:
+- possible cause
+- basic home care
+- when to see a doctor
+
+End strictly with:
+
+Doctor: <specialist>
+Reason: <short reason>
+"""
+
+    ai_text = ""
+
+    # ===== GEMINI MULTI-KEY FALLBACK =====
+    for key in GEMINI_KEYS:
+        if not key:
+            continue
