@@ -1,54 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AI Health Assistant</title>
-    <style>
-        body {
-            font-family: Arial;
-            background: #f4f7fb;
-        }
-        .box {
-            width: 60%;
-            margin: 80px auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-        }
-        button {
-            background: #2563eb;
-            color: white;
-            padding: 10px 25px;
-            border: none;
-            border-radius: 6px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <title>MedAssist AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
-<div class="box">
-    <h2>🩺 AI Health Assistant</h2>
+<!-- DARK MODE -->
+<div class="top-actions">
+    <button id="darkToggle">🌙</button>
+</div>
 
-    <form action="/analyze" method="post">
+<!-- HERO -->
+<section class="hero fade-in">
+    <h1>🩺 MedAssist AI</h1>
+    <p>Your Community Health Companion</p>
+</section>
 
-        <label>Language</label><br>
+<!-- FORM -->
+<div class="container slide-up">
+    <form action="/analyze" method="POST" class="card form-card">
+
+        <h2>Describe Your Health Issue</h2>
+
+        <input type="text" name="city" placeholder="Enter your city" required>
+
+        <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
+
         <select name="language">
             <option value="en-US">English</option>
             <option value="hi-IN">Hindi</option>
             <option value="te-IN">Telugu</option>
             <option value="ta-IN">Tamil</option>
-        </select><br><br>
+        </select>
 
-        <label>City</label><br>
-        <input type="text" name="city" required><br><br>
-
-        <label>Symptoms</label><br>
-        <textarea name="symptoms" rows="4" required></textarea><br><br>
-
-        <button type="submit">Analyze</button>
-
+        <button type="submit">🔍 Get Guidance</button>
     </form>
 </div>
 
+<!-- FLOATING CHAT -->
+<div id="chat-bubble">💬</div>
+
+<div id="chat-box">
+    <div class="chat-header">MedAssist Assistant</div>
+    <div class="chat-body" id="chat-body">
+        <div class="bot-msg">
+            Hi 👋  
+            Ask me how to use this site or understand results.
+        </div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="chat-input" placeholder="Ask something...">
+        <button onclick="sendMessage()">➤</button>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
 </body>
 </html>
