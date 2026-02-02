@@ -57,14 +57,16 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
-def get_nearby_hospitals(lat, lon):
-    hospitals = []
+# ================= MEDICAL PLACES (Hospitals + Clinics + Doctors) =================
+def get_nearby_medical_places(lat, lon):
+    places = []
 
     query = f"""
     [out:json];
     (
       node["amenity"="hospital"](around:30000,{lat},{lon});
       node["amenity"="clinic"](around:30000,{lat},{lon});
+      node["amenity"="doctors"](around:30000,{lat},{lon});
     );
     out;
     """
@@ -78,10 +80,20 @@ def get_nearby_hospitals(lat, lon):
         data = r.json()
 
         for item in data.get("elements", []):
-            name = item.get("tags", {}).get("name")
+            tags = item.get("tags", {})
+            name = tags.get("name")
+            amenity = tags.get("amenity")
+            specialty = (
+                tags.get("healthcare:speciality")
+                or tags.get("medical_specialty")
+                or "General Practice"
+            )
+
             if name and item.get("lat") and item.get("lon"):
-                hospitals.append({
+                places.append({
                     "name": name,
+                    "type": amenity.capitalize(),   # Hospital / Clinic / Doctors
+                    "specialty": specialty,
                     "distance": calculate_distance(
                         lat, lon, item["lat"], item["lon"]
                     ),
@@ -89,9 +101,9 @@ def get_nearby_hospitals(lat, lon):
                 })
 
     except Exception as e:
-        print("Hospital API error:", e)
+        print("Medical places error:", e)
 
-    return hospitals[:5]
+    return places[:8]
 
 # ================= GROK CHAT =================
 def ask_grok(prompt):
@@ -194,14 +206,16 @@ Always include:
     health = re.sub(r'\s+', ' ', health).strip()
 
     lat, lon = get_coordinates(city)
-    hospitals = get_nearby_hospitals(lat, lon)
+
+    # NEW: hospitals + private doctors + clinics
+    medical_places = get_nearby_medical_places(lat, lon)
 
     return render_template(
         "result.html",
         health=health,
         doctor=doctor,
         reason=reason,
-        hospitals=hospitals
+        medical_places=medical_places
     )
 
 # ================= CHAT API =================
