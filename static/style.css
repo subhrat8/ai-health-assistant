@@ -1,9 +1,13 @@
 /* ================= BASE ================= */
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: "Segoe UI", Arial, sans-serif;
     background: #f4f8fb;
     margin: 0;
-    transition: background 0.3s, color 0.3s;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 body.dark {
@@ -14,18 +18,20 @@ body.dark {
 .container {
     max-width: 900px;
     margin: auto;
-    padding: 30px;
+    padding: 24px;
 }
 
 /* ================= HEADER ================= */
 .header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 32px;
 }
 
 .header h1 {
     color: #0a5ed7;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
+    font-size: 28px;
+    letter-spacing: 0.3px;
 }
 
 .header p {
@@ -42,42 +48,48 @@ body.dark .header p {
 }
 
 /* ================= TOP CONTROLS ================= */
-.top-controls {
+#dark-toggle,
+#speak-btn {
     position: fixed;
-    top: 15px;
-    right: 15px;
-    z-index: 1000;
-}
-
-.top-controls button {
-    margin-left: 8px;
-    border: none;
+    top: 16px;
     background: #0a5ed7;
     color: white;
+    border: none;
     font-size: 18px;
     padding: 10px 12px;
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-    transition: background 0.3s, transform 0.2s;
+    transition: transform 0.2s ease, background 0.3s ease;
+    z-index: 2000;
 }
 
-.top-controls button:hover {
-    transform: scale(1.08);
+#dark-toggle {
+    right: 16px;
 }
 
-body.dark .top-controls button {
+#speak-btn {
+    right: 64px;
+}
+
+#dark-toggle:hover,
+#speak-btn:hover {
+    transform: scale(1.1);
+}
+
+body.dark #dark-toggle,
+body.dark #speak-btn {
     background: #333;
 }
 
 /* ================= CARDS ================= */
 .card {
     background: white;
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    transition: transform 0.3s, background 0.3s;
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    transition: transform 0.25s ease, background 0.3s ease;
 }
 
 body.dark .card {
@@ -85,9 +97,15 @@ body.dark .card {
 }
 
 .card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-5px);
 }
 
+.card h2 {
+    margin-top: 0;
+    font-size: 18px;
+}
+
+/* ================= AI + DOCTOR ================= */
 .assistant-card {
     border-left: 5px solid #0a5ed7;
 }
@@ -99,37 +117,65 @@ body.dark .card {
 .doctor-name {
     font-weight: bold;
     color: #1a9c3c;
+    font-size: 16px;
 }
 
 body.dark .doctor-name {
     color: #5edc8c;
 }
 
-/* ================= HOSPITAL LIST ================= */
+/* ================= SORT ================= */
+select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+}
+
+body.dark select {
+    background: #2b2b2b;
+    color: #fff;
+    border: 1px solid #444;
+}
+
+/* ================= MEDICAL LIST ================= */
 .hospital {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
+    padding: 14px 0;
     border-bottom: 1px solid #eee;
-    padding: 10px 0;
 }
 
 body.dark .hospital {
     border-bottom: 1px solid #333;
 }
 
+.hospital strong {
+    font-size: 15px;
+}
+
+.hospital div {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* ================= BUTTONS ================= */
 .map-btn {
     background: #0a5ed7;
     color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
     text-decoration: none;
     font-size: 13px;
-    transition: background 0.3s;
+    transition: background 0.3s ease, transform 0.2s ease;
+    white-space: nowrap;
 }
 
 .map-btn:hover {
     background: #084bb5;
+    transform: translateY(-2px);
 }
 
 body.dark .map-btn {
@@ -139,54 +185,60 @@ body.dark .map-btn {
 /* ================= SEARCH AGAIN ================= */
 .search-again {
     text-align: center;
-    margin-top: 25px;
+    margin-top: 28px;
 }
 
 .search-again a {
     background: #0a5ed7;
     color: white;
-    padding: 12px 25px;
-    border-radius: 10px;
+    padding: 14px 28px;
+    border-radius: 12px;
     text-decoration: none;
     font-size: 15px;
     display: inline-block;
-    transition: background 0.3s;
+    transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .search-again a:hover {
     background: #084bb5;
+    transform: translateY(-2px);
 }
 
-/* ================= FLOATING CHAT (IRCTC STYLE) ================= */
+/* ================= FLOATING CHAT ================= */
 #chat-bubble {
     position: fixed;
-    bottom: 25px;
-    right: 25px;
+    bottom: 26px;
+    right: 26px;
     background: #0a5ed7;
     color: white;
-    width: 55px;
-    height: 55px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     font-size: 26px;
     text-align: center;
-    line-height: 55px;
+    line-height: 56px;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    z-index: 2000;
+    transition: transform 0.25s ease;
+}
+
+#chat-bubble:hover {
+    transform: scale(1.1);
 }
 
 #chat-box {
     position: fixed;
-    bottom: 95px;
-    right: 25px;
+    bottom: 96px;
+    right: 26px;
     width: 320px;
     background: white;
-    border-radius: 14px;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+    border-radius: 16px;
+    box-shadow: 0 14px 35px rgba(0,0,0,0.35);
     display: none;
     flex-direction: column;
-    animation: slideUp 0.3s ease;
-    z-index: 1000;
+    animation: slideUp 0.25s ease;
+    z-index: 2000;
 }
 
 body.dark #chat-box {
@@ -200,13 +252,13 @@ body.dark #chat-box {
 .chat-header {
     background: #0a5ed7;
     color: white;
-    padding: 12px;
+    padding: 14px;
     font-weight: bold;
-    border-radius: 14px 14px 0 0;
+    border-radius: 16px 16px 0 0;
 }
 
 .chat-body {
-    padding: 10px;
+    padding: 12px;
     max-height: 260px;
     overflow-y: auto;
     font-size: 14px;
@@ -224,7 +276,7 @@ body.dark .chat-input {
 .chat-input input {
     flex: 1;
     border: none;
-    padding: 10px;
+    padding: 12px;
     outline: none;
     background: transparent;
     color: inherit;
@@ -234,10 +286,11 @@ body.dark .chat-input {
     border: none;
     background: #0a5ed7;
     color: white;
-    padding: 0 15px;
+    padding: 0 18px;
     cursor: pointer;
 }
 
+/* ================= CHAT MESSAGES ================= */
 .user-msg {
     text-align: right;
     margin-bottom: 8px;
@@ -250,8 +303,8 @@ body.dark .user-msg {
 
 .bot-msg {
     background: #f1f3f6;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 10px;
+    border-radius: 10px;
     margin-bottom: 8px;
 }
 
@@ -262,11 +315,29 @@ body.dark .bot-msg {
 /* ================= ANIMATIONS ================= */
 @keyframes slideUp {
     from {
-        transform: translateY(15px);
+        transform: translateY(16px);
         opacity: 0;
     }
     to {
         transform: translateY(0);
         opacity: 1;
+    }
+}
+
+/* ================= MOBILE ================= */
+@media (max-width: 600px) {
+    .container {
+        padding: 16px;
+    }
+
+    #chat-box {
+        width: 92%;
+        right: 4%;
+    }
+
+    .hospital {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
     }
 }
