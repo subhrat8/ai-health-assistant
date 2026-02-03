@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>MedAssist AI – Result</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
 <!-- TOP CONTROLS -->
-<button id="dark-toggle">🌙</button>
-<button id="speak-btn">🔊</button>
+<button id="dark-toggle" title="Dark Mode">🌙</button>
+<button id="speak-btn" title="Speak">🔊</button>
 
 <div class="container">
 
@@ -23,10 +24,12 @@
     <!-- AI GUIDANCE -->
     <div class="card assistant-card">
         <h2>🤖 AI Health Guidance</h2>
-        <p id="assistant-text">{{ health }}</p>
+        <p id="assistant-text">
+            {{ health if health else "General health guidance is provided based on your input." }}
+        </p>
     </div>
 
-    <!-- DOCTOR -->
+    <!-- RECOMMENDED DOCTOR -->
     <div class="card doctor-box">
         <h2>👨‍⚕️ Recommended Doctor</h2>
         <p class="doctor-name">{{ doctor }}</p>
@@ -35,13 +38,84 @@
 
     <!-- SORT -->
     <div class="card">
-        <label><strong>Sort by:</strong></label>
-        <select id="sortSelect" onchange="sortPlaces()">
+        <strong>Sort by:</strong>
+        <select id="sortSelect">
             <option value="distance">Distance</option>
             <option value="type">Type</option>
         </select>
     </div>
 
     <!-- MEDICAL PLACES -->
-    <div class="card" id="places-container">
-        <h2>🏥 Nearby Medical
+    <div class="card">
+        <h2>🏥 Nearby Hospitals & Doctors</h2>
+
+        <div id="places-container">
+            {% for p in medical_places %}
+            <div class="hospital"
+                 data-distance="{{ p.distance }}"
+                 data-type="{{ p.type }}">
+
+                <div>
+                    <strong>{{ p.name }}</strong><br>
+                    {{ p.type }} • {{ p.specialty }}<br>
+                    ⭐ {{ p.rating }} | {{ p.distance }} km
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <a class="map-btn" href="{{ p.map }}" target="_blank">Map</a>
+                    <a class="map-btn" href="{{ p.booking.google }}" target="_blank">
+                        Book Appointment
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <p>No nearby medical facilities found.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SEARCH AGAIN -->
+    <div class="search-again">
+        <a href="/">🔁 Search Again</a>
+    </div>
+
+</div>
+
+<!-- FLOATING CHAT -->
+<div id="chat-bubble">💬</div>
+
+<div id="chat-box">
+    <div class="chat-header">MedAssist Help</div>
+    <div class="chat-body" id="chat-body">
+        <div class="bot-msg">
+            Hi 👋 I can explain results, guide next steps, or answer general health questions.
+        </div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="chat-input" placeholder="Ask something…">
+        <button onclick="sendMessage()">➤</button>
+    </div>
+</div>
+
+<!-- SORT SCRIPT -->
+<script>
+function sortPlaces() {
+    const container = document.getElementById("places-container");
+    const cards = Array.from(container.children);
+    const sortBy = document.getElementById("sortSelect").value;
+
+    cards.sort((a, b) => {
+        if (sortBy === "distance") {
+            return parseFloat(a.dataset.distance) - parseFloat(b.dataset.distance);
+        }
+        return a.dataset.type.localeCompare(b.dataset.type);
+    });
+
+    cards.forEach(c => container.appendChild(c));
+}
+document.getElementById("sortSelect").addEventListener("change", sortPlaces);
+</script>
+
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
+</body>
+</html>
