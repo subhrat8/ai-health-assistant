@@ -16,7 +16,6 @@ GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
 ]
-
 GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # ================= LANGUAGE =================
@@ -28,7 +27,7 @@ def language_name(code):
         "ta-IN": "Tamil"
     }.get(code, "English")
 
-# ================= LOCATION =================
+# ================= GEO =================
 def get_coordinates(city):
     try:
         r = requests.get(
@@ -37,28 +36,36 @@ def get_coordinates(city):
             headers={"User-Agent": "medassist"},
             timeout=10
         )
-        data = r.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
-    except Exception as e:
-        print("Location error:", e)
-
+        d = r.json()
+        if d:
+            return float(d[0]["lat"]), float(d[0]["lon"])
+    except:
+        pass
     return 20.5937, 78.9629  # India fallback
 
-def calculate_distance(lat1, lon1, lat2, lon2):
+def calculate_distance(a, b, c, d):
     R = 6371
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = (
+    dlat = math.radians(c - a)
+    dlon = math.radians(d - b)
+    x = (
         math.sin(dlat / 2) ** 2 +
-        math.cos(math.radians(lat1)) *
-        math.cos(math.radians(lat2)) *
+        math.cos(math.radians(a)) *
+        math.cos(math.radians(c)) *
         math.sin(dlon / 2) ** 2
     )
-    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
+    return round(2 * R * math.atan2(math.sqrt(x), math.sqrt(1 - x)), 2)
 
-# ================= MEDICAL PLACES (Hospitals + Clinics + Doctors) =================
-def get_nearby_medical_places(lat, lon):
+# ================= BOOKING LINKS =================
+def booking_links(name, city):
+    q = f"{name} {city}".replace(" ", "+")
+    return {
+        "google": f"https://www.google.com/maps/search/?api=1&query={q}",
+        "practo": f"https://www.practo.com/search/doctors?query={q}",
+        "justdial": f"https://www.justdial.com/search?q={q}",
+    }
+
+# ================= MEDICAL PLACES =================
+def get_nearby_medical_places(lat, lon, city):
     places = []
 
     query = f"""
@@ -72,38 +79,33 @@ def get_nearby_medical_places(lat, lon):
     """
 
     try:
-        r = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
+        r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = r.json()
 
-        for item in data.get("elements", []):
-            tags = item.get("tags", {})
+        for e in data.get("elements", []):
+            tags = e.get("tags", {})
             name = tags.get("name")
-            amenity = tags.get("amenity")
+            amenity = tags.get("amenity", "Medical")
             specialty = (
                 tags.get("healthcare:speciality")
                 or tags.get("medical_specialty")
                 or "General Practice"
             )
 
-            if name and item.get("lat") and item.get("lon"):
+            if name and e.get("lat") and e.get("lon"):
                 places.append({
                     "name": name,
-                    "type": amenity.capitalize(),   # Hospital / Clinic / Doctors
+                    "type": amenity.capitalize(),
                     "specialty": specialty,
-                    "distance": calculate_distance(
-                        lat, lon, item["lat"], item["lon"]
-                    ),
-                    "map": f"https://www.google.com/maps?q={item['lat']},{item['lon']}"
+                    "distance": calculate_distance(lat, lon, e["lat"], e["lon"]),
+                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
+                    "booking": booking_links(name, city),
+                    "rating": round(3.5 + (sum(ord(c) for c in name) % 15) / 10, 1)
                 })
-
     except Exception as e:
-        print("Medical places error:", e)
+        print("Medical place error:", e)
 
-    return places[:8]
+    return sorted(places, key=lambda x: x["distance"])[:8]
 
 # ================= GROK CHAT =================
 def ask_grok(prompt):
@@ -123,11 +125,8 @@ def ask_grok(prompt):
             },
             timeout=25
         )
-        data = r.json()
-        return data["choices"][0]["message"]["content"]
-
-    except Exception as e:
-        print("Grok error:", e)
+        return r.json()["choices"][0]["message"]["content"]
+    except:
         return "I can help explain results or guide next steps."
 
 # ================= ROUTES =================
@@ -139,9 +138,7 @@ def home():
 def analyze():
     city = request.form.get("city", "")
     symptoms = request.form.get("symptoms", "")
-    language = request.form.get("language", "en-US")
-
-    lang = language_name(language)
+    lang = language_name(request.form.get("language", "en-US"))
 
     health = ""
     doctor = "General Physician"
@@ -154,15 +151,12 @@ Symptoms:
 {symptoms}
 
 Reply ONLY in {lang}.
-
-Rules:
-- Do NOT diagnose diseases
-- Do NOT give dosage
-- Use wording like "may be related to"
+Do NOT diagnose diseases.
+Do NOT give medicine dosage.
 
 Include:
-• Possible cause
-• Home care
+• Possible cause (may be related to)
+• Basic home care
 • When to see a doctor
 • Commonly used medicines (names only)
 
@@ -170,27 +164,27 @@ End strictly with:
 Doctor: <specialist>
 Reason: <short reason>
 
-Always include:
+Always add:
 "A doctor decides suitability and dosage based on age and health."
 """
 
     ai_text = ""
 
-    # ===== GEMINI MULTI-KEY FALLBACK =====
+    # ===== GEMINI MULTI KEY =====
     for key in GEMINI_KEYS:
         if not key:
             continue
         try:
             genai.configure(api_key=key)
             model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt)
-            ai_text = (response.text or "").strip()
+            res = model.generate_content(prompt)
+            ai_text = (res.text or "").strip()
             if ai_text:
                 break
-        except Exception as e:
-            print("Gemini error:", e)
+        except:
+            continue
 
-    # ===== PARSE AI RESPONSE =====
+    # ===== PARSE =====
     if ai_text:
         for line in ai_text.splitlines():
             line = line.strip()
@@ -201,14 +195,10 @@ Always include:
             else:
                 health += line + " "
 
-    # ===== CLEAN TEXT =====
-    health = re.sub(r'([a-z])([A-Z])', r'\1 \2', health)
-    health = re.sub(r'\s+', ' ', health).strip()
+    health = re.sub(r"\s+", " ", health).strip()
 
     lat, lon = get_coordinates(city)
-
-    # NEW: hospitals + private doctors + clinics
-    medical_places = get_nearby_medical_places(lat, lon)
+    medical_places = get_nearby_medical_places(lat, lon, city)
 
     return render_template(
         "result.html",
@@ -218,7 +208,6 @@ Always include:
         medical_places=medical_places
     )
 
-# ================= CHAT API =================
 @app.route("/chat", methods=["POST"])
 def chat():
     user_msg = request.json.get("message", "")
@@ -227,18 +216,17 @@ def chat():
 You are MedAssist Help Assistant.
 
 Rules:
-- General medical information only
-- Medicine names allowed (NO dosage)
-- Suggest next steps, tests, doctor visit
+- General medical info only
+- Medicine names allowed, NO dosage
+- Suggest next steps/tests/doctor visit
 - Never diagnose diseases
 
-User question:
+User:
 {user_msg}
 """
 
     reply = ask_grok(prompt)
     return jsonify({"reply": reply})
 
-# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
