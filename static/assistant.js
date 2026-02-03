@@ -1,107 +1,56 @@
-// ================= SAFE DOM READY =================
-document.addEventListener("DOMContentLoaded", () => {
+// ================= SPEECH =================
+let synth = window.speechSynthesis;
 
-    // ---------- ELEMENTS ----------
-    const chatBubble = document.getElementById("chat-bubble");
-    const chatBox = document.getElementById("chat-box");
-    const chatBody = document.getElementById("chat-body");
-    const chatInput = document.getElementById("chat-input");
-    const darkToggle = document.getElementById("dark-toggle");
-    const speakBtn = document.getElementById("speak-btn");
-    const assistantText = document.getElementById("assistant-text");
+function speak(text) {
+    if (!text) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    u.pitch = 1;
+    synth.speak(u);
+}
 
-    // ---------- SPEECH ----------
-    const synth = window.speechSynthesis;
-
-    function speakText(text) {
-        if (!text || !synth) return;
-        synth.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.rate = 0.95;
-        utter.pitch = 1;
-        synth.speak(utter);
-    }
-
-    // ---------- DARK MODE ----------
-    if (darkToggle) {
-        if (localStorage.getItem("darkMode") === "true") {
-            document.body.classList.add("dark");
-        }
-        darkToggle.onclick = () => {
-            document.body.classList.toggle("dark");
-            localStorage.setItem(
-                "darkMode",
-                document.body.classList.contains("dark")
-            );
-        };
-    }
-
-    // ---------- READ RESULT ----------
-    if (speakBtn && assistantText) {
-        speakBtn.onclick = () => speakText(assistantText.innerText);
-    }
-
-    // ---------- CHAT OPEN ----------
-    if (chatBubble && chatBox) {
-        chatBubble.onclick = () => {
-            chatBox.classList.toggle("open");
-            if (chatBody.children.length === 0) {
-                addMessage(
-                    "Hi 👋 I’m MedAssist.\n\nI can:\n• Explain your results\n• Suggest next steps\n• Share general health info\n\nAsk me anything.",
-                    "bot"
-                );
-            }
-        };
-    }
-
-    // ---------- ADD MESSAGE ----------
-    function addMessage(text, sender) {
-        const msg = document.createElement("div");
-        msg.className = sender === "user" ? "user-msg" : "bot-msg";
-        msg.innerText = text;
-        chatBody.appendChild(msg);
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        if (sender === "bot") {
-            speakText(text);
-        }
-    }
-
-    // ---------- SEND MESSAGE ----------
-    window.sendMessage = function () {
-        const text = chatInput.value.trim();
-        if (!text) return;
-
-        addMessage(text, "user");
-        chatInput.value = "";
-
-        fetch("/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        })
-        .then(res => res.json())
-        .then(data => {
-            addMessage(
-                data.reply || "I’m here to help. Please try again.",
-                "bot"
-            );
-        })
-        .catch(() => {
-            addMessage(
-                "⚠️ Service temporarily unavailable. Please try again.",
-                "bot"
-            );
-        });
+// ================= DARK MODE =================
+const darkToggle = document.getElementById("dark-toggle");
+if (darkToggle) {
+    darkToggle.onclick = () => {
+        document.body.classList.toggle("dark");
+        localStorage.setItem("dark", document.body.classList.contains("dark"));
     };
-
-    // ---------- ENTER KEY ----------
-    if (chatInput) {
-        chatInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                sendMessage();
-            }
-        });
+    if (localStorage.getItem("dark") === "true") {
+        document.body.classList.add("dark");
     }
+}
 
-});
+// ================= CHAT =================
+const bubble = document.getElementById("chat-bubble");
+const box = document.getElementById("chat-box");
+const body = document.getElementById("chat-body");
+const input = document.getElementById("chat-input");
+
+if (bubble) bubble.onclick = () => box.classList.toggle("open");
+
+function addMsg(text, type) {
+    const d = document.createElement("div");
+    d.className = type === "user" ? "user-msg" : "bot-msg";
+    d.innerText = text;
+    body.appendChild(d);
+    body.scrollTop = body.scrollHeight;
+    if (type === "bot") speak(text);
+}
+
+function sendMessage() {
+    const t = input.value.trim();
+    if (!t) return;
+    addMsg(t, "user");
+    input.value = "";
+
+    fetch("/chat", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message: t})
+    })
+    .then(r => r.json())
+    .then(d => addMsg(d.reply, "bot"))
+    .catch(() => addMsg("Service unavailable.", "bot"));
+}
