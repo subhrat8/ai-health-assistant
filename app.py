@@ -10,21 +10,11 @@ import google.generativeai as genai
 load_dotenv()
 app = Flask(__name__)
 
-# Gemini API keys (any one is enough)
-GEMINI_KEYS = [
-    os.getenv("GEMINI_API_KEY"),
-    os.getenv("GEMINI_API_KEY_2"),
-    os.getenv("GEMINI_API_KEY_3"),
-]
+API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ================= LANGUAGE =================
-def language_name(code):
-    return {
-        "en-US": "English",
-        "hi-IN": "Hindi",
-        "te-IN": "Telugu",
-        "ta-IN": "Tamil"
-    }.get(code, "English")
+# Configure Gemini once
+if API_KEY:
+    genai.configure(api_key=API_KEY, transport="rest")
 
 # ================= LOCATION =================
 def get_coordinates(city):
@@ -35,35 +25,34 @@ def get_coordinates(city):
             headers={"User-Agent": "medassist"},
             timeout=8
         )
-        d = r.json()
-        if d:
-            return float(d[0]["lat"]), float(d[0]["lon"])
+        data = r.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629  # India fallback
+    return 20.5937, 78.9629  # fallback India
 
-def distance(a, b, c, d):
+def distance(lat1, lon1, lat2, lon2):
     R = 6371
-    dlat = math.radians(c - a)
-    dlon = math.radians(d - b)
-    x = (
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (
         math.sin(dlat / 2) ** 2 +
-        math.cos(math.radians(a)) *
-        math.cos(math.radians(c)) *
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
         math.sin(dlon / 2) ** 2
     )
-    return round(2 * R * math.atan2(math.sqrt(x), math.sqrt(1 - x)), 2)
+    return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
-# ================= MEDICAL PLACES =================
-def get_nearby_medical_places(lat, lon, city):
+# ================= NEARBY MEDICAL =================
+def get_nearby_medical_places(lat, lon):
     results = []
 
     query = f"""
     [out:json];
     (
-      node["amenity"="hospital"](around:30000,{lat},{lon});
-      node["amenity"="clinic"](around:30000,{lat},{lon});
-      node["amenity"="doctors"](around:30000,{lat},{lon});
+      node["amenity"="hospital"](around:20000,{lat},{lon});
+      node["amenity"="clinic"](around:20000,{lat},{lon});
     );
     out;
     """
@@ -79,16 +68,10 @@ def get_nearby_medical_places(lat, lon, city):
         for e in data.get("elements", []):
             tags = e.get("tags", {})
             name = tags.get("name")
-            speciality = (
-                tags.get("healthcare:speciality")
-                or tags.get("medical_specialty")
-                or "General Care"
-            )
 
             if name and e.get("lat") and e.get("lon"):
                 results.append({
                     "name": name,
-                    "speciality": speciality,
                     "distance": distance(lat, lon, e["lat"], e["lon"]),
                     "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}"
                 })
@@ -97,52 +80,21 @@ def get_nearby_medical_places(lat, lon, city):
 
     return sorted(results, key=lambda x: x["distance"])[:6]
 
-# ================= AI HEALTH GUIDANCE =================
-def ai_health_guidance(symptoms, lang):
-    prompt = f"""
-You are a health information assistant.
+# ================= AI GUIDANCE =================
+def generate_ai_response(prompt):
+    if not API_KEY:
+        return None
 
-Symptoms:
-{symptoms}
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(prompt)
 
-Reply ONLY in {lang}.
-Do NOT diagnose.
-Do NOT give dosage.
+        if response and response.candidates:
+            return response.candidates[0].content.parts[0].text.strip()
+    except:
+        return None
 
-Explain clearly:
-- What these symptoms may be related to
-- Basic home care
-- When medical help is needed
-
-End exactly with:
-Doctor: <specialist>
-Reason: <short reason>
-"""
-
-    for key in GEMINI_KEYS:
-        if not key:
-            continue
-        try:
-            genai.configure(api_key=key, transport="rest")
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            res = model.generate_content(prompt)
-
-            if res and res.candidates:
-                text = res.candidates[0].content.parts[0].text.strip()
-                if len(text) > 80:
-                    return text
-        except:
-            continue
-
-    # Safe fallback (never empty)
-    return (
-        "The symptoms you entered may be related to a common health condition. "
-        "Ensure adequate rest, hydration, and basic self-care. "
-        "If symptoms persist, worsen, or interfere with daily activities, "
-        "medical consultation is advised.\n\n"
-        "Doctor: General Physician\n"
-        "Reason: Initial medical evaluation"
-    )
+    return None
 
 # ================= ROUTES =================
 @app.route("/")
@@ -151,86 +103,101 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    city = request.form.get("city", "")
-    symptoms = request.form.get("symptoms", "")
-    lang = language_name(request.form.get("language", "en-US"))
+    try:
+        city = request.form.get("city", "")
+        symptoms = request.form.get("symptoms", "")
 
-    ai_text = ai_health_guidance(symptoms, lang)
+        prompt = f"""
+You are a medical assistant.
 
-    health = ""
-    doctor = "General Physician"
-    reason = "Initial consultation recommended"
+Symptoms:
+{symptoms}
 
-    for line in ai_text.splitlines():
-        l = line.strip()
-        if l.lower().startswith("doctor:"):
-            doctor = l.split(":", 1)[1].strip()
-        elif l.lower().startswith("reason:"):
-            reason = l.split(":", 1)[1].strip()
-        else:
-            health += l + " "
+Explain:
+- Possible cause (general only)
+- Basic home care
+- When to see doctor
 
-    health = re.sub(r"\s+", " ", health).strip()
+End with:
+Doctor: <specialist>
+Reason: <short reason>
 
-    lat, lon = get_coordinates(city)
-    medical_places = get_nearby_medical_places(lat, lon, city)
-
-    # IMPORTANT: send both old & new variables (prevents 500 error)
-    return render_template(
-        "result.html",
-        health=health,
-        doctor=doctor,
-        reason=reason,
-        medical_places=medical_places,
-        hospitals=medical_places,
-        searched_city=city,
-        searched_symptoms=symptoms,
-        city=city,
-        symptoms=symptoms
-    )
-
-# ================= WEBSITE ASSISTANT =================
-@app.route("/chat", methods=["POST"])
-def chat():
-    data = request.json or {}
-    user_msg = data.get("message", "")
-    context = data.get("context", "")
-
-    prompt = f"""
-You are MedAssist Help Assistant.
-
-Context:
-{context}
-
-User question:
-{user_msg}
-
-Rules:
-- Friendly and natural
-- Explain results
-- Suggest next steps
-- No diagnosis
-- No dosage
+No diagnosis. No dosage.
 """
 
-    for key in GEMINI_KEYS:
-        if not key:
-            continue
-        try:
-            genai.configure(api_key=key, transport="rest")
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            res = model.generate_content(prompt)
+        ai_text = generate_ai_response(prompt)
 
-            if res and res.candidates:
-                return jsonify({
-                    "reply": res.candidates[0].content.parts[0].text.strip()
-                })
-        except:
-            continue
+        # Safe fallback
+        if not ai_text:
+            ai_text = (
+                "Your symptoms may be related to a common health issue. "
+                "Ensure rest and hydration. If symptoms worsen, consult a doctor.\n\n"
+                "Doctor: General Physician\n"
+                "Reason: Initial consultation recommended"
+            )
 
-    return jsonify({
-        "reply": "I can help explain your results or guide you on next steps."
-    })
+        health = ""
+        doctor = "General Physician"
+        reason = "Initial consultation recommended"
+
+        for line in ai_text.splitlines():
+            line = line.strip()
+            if line.lower().startswith("doctor:"):
+                doctor = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("reason:"):
+                reason = line.split(":", 1)[1].strip()
+            else:
+                health += line + " "
+
+        health = re.sub(r"\s+", " ", health).strip()
+
+        lat, lon = get_coordinates(city)
+        medical_places = get_nearby_medical_places(lat, lon)
+
+        return render_template(
+            "result.html",
+            health=health,
+            doctor=doctor,
+            reason=reason,
+            medical_places=medical_places,
+            hospitals=medical_places,
+            searched_city=city,
+            searched_symptoms=symptoms
+        )
+
+    except Exception as e:
+        print("Analyze error:", e)
+        return "Something went wrong. Please try again."
+
+# ================= CHAT ASSISTANT =================
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        data = request.json or {}
+        user_msg = data.get("message", "")
+
+        prompt = f"""
+You are MedAssist AI assistant.
+
+User message:
+{user_msg}
+
+Be friendly.
+Give general health information.
+No diagnosis.
+No dosage.
+"""
+
+        reply = generate_ai_response(prompt)
+
+        if not reply:
+            reply = "I can help explain your results or guide next steps."
+
+        return jsonify({"reply": reply})
+
+    except Exception as e:
+        print("Chat error:", e)
+        return jsonify({"reply": "Assistant unavailable right now."})
 
 # ================= RUN =================
 if __name__ == "__main__":
