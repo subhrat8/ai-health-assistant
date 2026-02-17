@@ -6,17 +6,15 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# ================= LOAD ENV =================
+# ================= BASIC SETUP =================
 load_dotenv()
 app = Flask(__name__)
 
-# ================= API KEYS =================
 GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY"),
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3"),
 ]
-GROK_API_KEY = os.getenv("GROK_API_KEY")
 
 # ================= LANGUAGE =================
 def language_name(code):
@@ -27,7 +25,7 @@ def language_name(code):
         "ta-IN": "Tamil"
     }.get(code, "English")
 
-# ================= GEO =================
+# ================= LOCATION =================
 def get_coordinates(city):
     try:
         r = requests.get(
@@ -43,7 +41,7 @@ def get_coordinates(city):
         pass
     return 20.5937, 78.9629  # India fallback
 
-def calculate_distance(a, b, c, d):
+def distance(a, b, c, d):
     R = 6371
     dlat = math.radians(c - a)
     dlon = math.radians(d - b)
@@ -55,18 +53,9 @@ def calculate_distance(a, b, c, d):
     )
     return round(2 * R * math.atan2(math.sqrt(x), math.sqrt(1 - x)), 2)
 
-# ================= BOOKING LINKS =================
-def booking_links(name, city):
-    q = f"{name} {city}".replace(" ", "+")
-    return {
-        "google": f"https://www.google.com/maps/search/?api=1&query={q}",
-        "practo": f"https://www.practo.com/search/doctors?query={q}",
-        "justdial": f"https://www.justdial.com/search?q={q}",
-    }
-
 # ================= MEDICAL PLACES =================
 def get_nearby_medical_places(lat, lon, city):
-    places = []
+    results = []
 
     query = f"""
     [out:json];
@@ -85,49 +74,68 @@ def get_nearby_medical_places(lat, lon, city):
         for e in data.get("elements", []):
             tags = e.get("tags", {})
             name = tags.get("name")
-            amenity = tags.get("amenity", "Medical")
-            specialty = (
+            speciality = (
                 tags.get("healthcare:speciality")
                 or tags.get("medical_specialty")
-                or "General Practice"
+                or "General Care"
             )
 
             if name and e.get("lat") and e.get("lon"):
-                places.append({
+                results.append({
                     "name": name,
-                    "type": amenity.capitalize(),
-                    "specialty": specialty,
-                    "distance": calculate_distance(lat, lon, e["lat"], e["lon"]),
-                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
-                    "booking": booking_links(name, city),
-                    "rating": round(3.5 + (sum(ord(c) for c in name) % 15) / 10, 1)
+                    "speciality": speciality,
+                    "distance": distance(lat, lon, e["lat"], e["lon"]),
+                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}"
                 })
-    except Exception as e:
-        print("Medical place error:", e)
-
-    return sorted(places, key=lambda x: x["distance"])[:8]
-
-# ================= GROK CHAT =================
-def ask_grok(prompt):
-    if not GROK_API_KEY:
-        return "I can help explain results or guide next steps."
-
-    try:
-        r = requests.post(
-            "https://api.x.ai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {GROK_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "grok-1",
-                "messages": [{"role": "user", "content": prompt}]
-            },
-            timeout=25
-        )
-        return r.json()["choices"][0]["message"]["content"]
     except:
-        return "I can help explain results or guide next steps."
+        pass
+
+    return sorted(results, key=lambda x: x["distance"])[:6]
+
+# ================= AI HEALTH GUIDANCE =================
+def ai_health_guidance(symptoms, lang):
+    prompt = f"""
+You are a health information assistant.
+
+Symptoms:
+{symptoms}
+
+Reply ONLY in {lang}.
+Do NOT diagnose.
+Do NOT give dosage.
+
+Explain clearly:
+- What these symptoms may be related to
+- Basic home care
+- When medical help is needed
+
+End with:
+Doctor: <specialist>
+Reason: <short reason>
+"""
+
+    for key in GEMINI_KEYS:
+        if not key:
+            continue
+        try:
+            genai.configure(api_key=key, transport="rest")
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            res = model.generate_content(prompt)
+
+            if res and res.candidates:
+                text = res.candidates[0].content.parts[0].text.strip()
+                if len(text) > 80:
+                    return text
+        except:
+            continue
+
+    return (
+        "Your symptoms may indicate a common health issue. "
+        "Ensure rest, hydration, and basic care. "
+        "If symptoms continue or worsen, consult a doctor.\n\n"
+        "Doctor: General Physician\n"
+        "Reason: Initial medical evaluation"
+    )
 
 # ================= ROUTES =================
 @app.route("/")
@@ -140,60 +148,20 @@ def analyze():
     symptoms = request.form.get("symptoms", "")
     lang = language_name(request.form.get("language", "en-US"))
 
+    ai_text = ai_health_guidance(symptoms, lang)
+
     health = ""
     doctor = "General Physician"
     reason = "Initial consultation recommended"
 
-    prompt = f"""
-You are a medical information assistant.
-
-Symptoms:
-{symptoms}
-
-Reply ONLY in {lang}.
-Do NOT diagnose diseases.
-Do NOT give medicine dosage.
-
-Include:
-• Possible cause (may be related to)
-• Basic home care
-• When to see a doctor
-• Commonly used medicines (names only)
-
-End strictly with:
-Doctor: <specialist>
-Reason: <short reason>
-
-Always add:
-"A doctor decides suitability and dosage based on age and health."
-"""
-
-    ai_text = ""
-
-    # ===== GEMINI MULTI KEY =====
-    for key in GEMINI_KEYS:
-        if not key:
-            continue
-        try:
-            genai.configure(api_key=key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            res = model.generate_content(prompt)
-            ai_text = (res.text or "").strip()
-            if ai_text:
-                break
-        except:
-            continue
-
-    # ===== PARSE =====
-    if ai_text:
-        for line in ai_text.splitlines():
-            line = line.strip()
-            if line.lower().startswith("doctor:"):
-                doctor = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("reason:"):
-                reason = line.split(":", 1)[1].strip()
-            else:
-                health += line + " "
+    for line in ai_text.splitlines():
+        l = line.strip()
+        if l.lower().startswith("doctor:"):
+            doctor = l.split(":", 1)[1].strip()
+        elif l.lower().startswith("reason:"):
+            reason = l.split(":", 1)[1].strip()
+        else:
+            health += l + " "
 
     health = re.sub(r"\s+", " ", health).strip()
 
@@ -205,28 +173,53 @@ Always add:
         health=health,
         doctor=doctor,
         reason=reason,
-        medical_places=medical_places
+        medical_places=medical_places,
+        city=city,
+        symptoms=symptoms
     )
 
+# ================= WEBSITE ASSISTANT =================
 @app.route("/chat", methods=["POST"])
 def chat():
     user_msg = request.json.get("message", "")
+    context = request.json.get("context", "")
 
     prompt = f"""
 You are MedAssist Help Assistant.
 
-Rules:
-- General medical info only
-- Medicine names allowed, NO dosage
-- Suggest next steps/tests/doctor visit
-- Never diagnose diseases
+Context:
+{context}
 
-User:
+User question:
 {user_msg}
+
+Rules:
+- Friendly
+- Explain results
+- Suggest next steps
+- No diagnosis
+- No dosage
 """
 
-    reply = ask_grok(prompt)
-    return jsonify({"reply": reply})
+    for key in GEMINI_KEYS:
+        if not key:
+            continue
+        try:
+            genai.configure(api_key=key, transport="rest")
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            res = model.generate_content(prompt)
 
+            if res and res.candidates:
+                return jsonify({
+                    "reply": res.candidates[0].content.parts[0].text.strip()
+                })
+        except:
+            continue
+
+    return jsonify({
+        "reply": "I can help explain your results or guide you on next steps."
+    })
+
+# ================= RUN =================
 if __name__ == "__main__":
     app.run(debug=True)
