@@ -10,6 +10,7 @@ import google.generativeai as genai
 load_dotenv()
 app = Flask(__name__)
 
+# Gemini API keys (any one is enough)
 GEMINI_KEYS = [
     os.getenv("GEMINI_API_KEY"),
     os.getenv("GEMINI_API_KEY_2"),
@@ -32,7 +33,7 @@ def get_coordinates(city):
             "https://nominatim.openstreetmap.org/search",
             params={"q": city, "format": "json", "limit": 1},
             headers={"User-Agent": "medassist"},
-            timeout=10
+            timeout=8
         )
         d = r.json()
         if d:
@@ -68,7 +69,11 @@ def get_nearby_medical_places(lat, lon, city):
     """
 
     try:
-        r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+        r = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data=query,
+            timeout=10
+        )
         data = r.json()
 
         for e in data.get("elements", []):
@@ -109,7 +114,7 @@ Explain clearly:
 - Basic home care
 - When medical help is needed
 
-End with:
+End exactly with:
 Doctor: <specialist>
 Reason: <short reason>
 """
@@ -129,10 +134,12 @@ Reason: <short reason>
         except:
             continue
 
+    # Safe fallback (never empty)
     return (
-        "Your symptoms may indicate a common health issue. "
-        "Ensure rest, hydration, and basic care. "
-        "If symptoms continue or worsen, consult a doctor.\n\n"
+        "The symptoms you entered may be related to a common health condition. "
+        "Ensure adequate rest, hydration, and basic self-care. "
+        "If symptoms persist, worsen, or interfere with daily activities, "
+        "medical consultation is advised.\n\n"
         "Doctor: General Physician\n"
         "Reason: Initial medical evaluation"
     )
@@ -168,12 +175,16 @@ def analyze():
     lat, lon = get_coordinates(city)
     medical_places = get_nearby_medical_places(lat, lon, city)
 
+    # IMPORTANT: send both old & new variables (prevents 500 error)
     return render_template(
         "result.html",
         health=health,
         doctor=doctor,
         reason=reason,
         medical_places=medical_places,
+        hospitals=medical_places,
+        searched_city=city,
+        searched_symptoms=symptoms,
         city=city,
         symptoms=symptoms
     )
@@ -181,8 +192,9 @@ def analyze():
 # ================= WEBSITE ASSISTANT =================
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_msg = request.json.get("message", "")
-    context = request.json.get("context", "")
+    data = request.json or {}
+    user_msg = data.get("message", "")
+    context = data.get("context", "")
 
     prompt = f"""
 You are MedAssist Help Assistant.
@@ -194,7 +206,7 @@ User question:
 {user_msg}
 
 Rules:
-- Friendly
+- Friendly and natural
 - Explain results
 - Suggest next steps
 - No diagnosis
