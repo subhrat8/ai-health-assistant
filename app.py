@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini once
+# Configure Gemini once (Render-safe)
 if API_KEY:
     genai.configure(api_key=API_KEY, transport="rest")
 
@@ -30,7 +30,7 @@ def get_coordinates(city):
             return float(data[0]["lat"]), float(data[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629  # fallback India
+    return 20.5937, 78.9629  # India fallback
 
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -44,15 +44,16 @@ def distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
-# ================= NEARBY MEDICAL =================
-def get_nearby_medical_places(lat, lon):
+# ================= NEARBY MEDICAL (FULL FEATURES) =================
+def get_nearby_medical_places(lat, lon, city):
     results = []
 
     query = f"""
     [out:json];
     (
-      node["amenity"="hospital"](around:20000,{lat},{lon});
-      node["amenity"="clinic"](around:20000,{lat},{lon});
+      node["amenity"="hospital"](around:30000,{lat},{lon});
+      node["amenity"="clinic"](around:30000,{lat},{lon});
+      node["amenity"="doctors"](around:30000,{lat},{lon});
     );
     out;
     """
@@ -61,39 +62,57 @@ def get_nearby_medical_places(lat, lon):
         r = requests.post(
             "https://overpass-api.de/api/interpreter",
             data=query,
-            timeout=10
+            timeout=15
         )
         data = r.json()
 
         for e in data.get("elements", []):
             tags = e.get("tags", {})
             name = tags.get("name")
+            if not name:
+                continue
 
-            if name and e.get("lat") and e.get("lon"):
+            address = ", ".join(filter(None, [
+                tags.get("addr:street"),
+                tags.get("addr:city"),
+                tags.get("addr:state")
+            ])) or "Address not available"
+
+            specialty = (
+                tags.get("healthcare:speciality")
+                or tags.get("medical_specialty")
+                or "General Care"
+            )
+
+            if e.get("lat") and e.get("lon"):
                 results.append({
                     "name": name,
+                    "address": address,
+                    "specialty": specialty,
                     "distance": distance(lat, lon, e["lat"], e["lon"]),
-                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}"
+                    "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
+                    "booking": {
+                        "google": f"https://www.google.com/maps/search/{name}+{city}",
+                        "practo": f"https://www.practo.com/search/doctors?query={name}+{city}",
+                        "justdial": f"https://www.justdial.com/search?q={name}+{city}"
+                    }
                 })
-    except:
-        pass
+    except Exception as e:
+        print("Overpass error:", e)
 
-    return sorted(results, key=lambda x: x["distance"])[:6]
+    return sorted(results, key=lambda x: x["distance"])[:8]
 
 # ================= AI GUIDANCE =================
 def generate_ai_response(prompt):
     if not API_KEY:
         return None
-
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
-
         if response and response.candidates:
             return response.candidates[0].content.parts[0].text.strip()
     except:
         return None
-
     return None
 
 # ================= ROUTES =================
@@ -127,7 +146,6 @@ No diagnosis. No dosage.
 
         ai_text = generate_ai_response(prompt)
 
-        # Safe fallback
         if not ai_text:
             ai_text = (
                 "Your symptoms may be related to a common health issue. "
@@ -152,7 +170,7 @@ No diagnosis. No dosage.
         health = re.sub(r"\s+", " ", health).strip()
 
         lat, lon = get_coordinates(city)
-        medical_places = get_nearby_medical_places(lat, lon)
+        medical_places = get_nearby_medical_places(lat, lon, city)
 
         return render_template(
             "result.html",
@@ -160,7 +178,7 @@ No diagnosis. No dosage.
             doctor=doctor,
             reason=reason,
             medical_places=medical_places,
-            hospitals=medical_places,
+            hospitals=medical_places,          # backward compatibility
             searched_city=city,
             searched_symptoms=symptoms
         )
@@ -189,7 +207,6 @@ No dosage.
 """
 
         reply = generate_ai_response(prompt)
-
         if not reply:
             reply = "I can help explain your results or guide next steps."
 
