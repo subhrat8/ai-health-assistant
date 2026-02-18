@@ -2,6 +2,7 @@ import os
 import math
 import re
 import requests
+import random
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -12,7 +13,6 @@ app = Flask(__name__)
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini once (Render-safe)
 if API_KEY:
     genai.configure(api_key=API_KEY, transport="rest")
 
@@ -30,7 +30,7 @@ def get_coordinates(city):
             return float(data[0]["lat"]), float(data[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629  # India fallback
+    return 20.5937, 78.9629
 
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -47,7 +47,6 @@ def distance(lat1, lon1, lat2, lon2):
 # ================= NEARBY MEDICAL =================
 def get_nearby_medical_places(lat, lon, city):
     results = []
-
     query = f"""
     [out:json];
     (
@@ -59,11 +58,7 @@ def get_nearby_medical_places(lat, lon, city):
     """
 
     try:
-        r = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data=query,
-            timeout=15
-        )
+        r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
         data = r.json()
 
         for e in data.get("elements", []):
@@ -78,11 +73,7 @@ def get_nearby_medical_places(lat, lon, city):
                 tags.get("addr:state")
             ])) or "Address not available"
 
-            specialty = (
-                tags.get("healthcare:speciality")
-                or tags.get("medical_specialty")
-                or "General Care"
-            )
+            specialty = tags.get("healthcare:speciality") or "General Care"
 
             if e.get("lat") and e.get("lon"):
                 results.append({
@@ -108,12 +99,11 @@ def generate_ai_response(prompt):
         return None
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        if response and response.candidates:
-            return response.candidates[0].content.parts[0].text.strip()
+        res = model.generate_content(prompt)
+        if res and res.candidates:
+            return res.candidates[0].content.parts[0].text.strip()
     except Exception as e:
         print("Gemini error:", e)
-        return None
     return None
 
 # ================= ROUTES =================
@@ -123,18 +113,15 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    try:
-        city = request.form.get("city", "")
-        symptoms = request.form.get("symptoms", "")
+    city = request.form.get("city", "")
+    symptoms = request.form.get("symptoms", "")
 
-        prompt = f"""
-You are a medical assistant.
-
-Symptoms:
+    prompt = f"""
+Explain symptoms in simple terms:
 {symptoms}
 
-Explain in simple language:
-- Possible cause (general only)
+Include:
+- What it may be related to
 - Basic home care
 - When to see a doctor
 
@@ -142,103 +129,90 @@ End with:
 Doctor: <specialist>
 Reason: <short reason>
 
-Rules:
-- No diagnosis
-- No dosage
+No diagnosis. No dosage.
 """
 
-        ai_text = generate_ai_response(prompt)
+    ai_text = generate_ai_response(prompt) or (
+        "Your symptoms may be related to a common health issue. "
+        "Ensure rest and hydration.\n\n"
+        "Doctor: General Physician\n"
+        "Reason: Initial consultation recommended"
+    )
 
-        if not ai_text:
-            ai_text = (
-                "Your symptoms may be related to a common health issue. "
-                "Ensure rest, hydration, and basic care. "
-                "If symptoms worsen or persist, consult a doctor.\n\n"
-                "Doctor: General Physician\n"
-                "Reason: Initial consultation recommended"
-            )
+    health, doctor, reason = "", "General Physician", "Initial consultation recommended"
 
-        health = ""
-        doctor = "General Physician"
-        reason = "Initial consultation recommended"
+    for line in ai_text.splitlines():
+        if line.lower().startswith("doctor:"):
+            doctor = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("reason:"):
+            reason = line.split(":", 1)[1].strip()
+        else:
+            health += line + " "
 
-        for line in ai_text.splitlines():
-            line = line.strip()
-            if line.lower().startswith("doctor:"):
-                doctor = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("reason:"):
-                reason = line.split(":", 1)[1].strip()
-            else:
-                health += line + " "
+    lat, lon = get_coordinates(city)
+    medical_places = get_nearby_medical_places(lat, lon, city)
 
-        health = re.sub(r"\s+", " ", health).strip()
+    return render_template(
+        "result.html",
+        health=health.strip(),
+        doctor=doctor,
+        reason=reason,
+        medical_places=medical_places,
+        hospitals=medical_places,
+        searched_city=city,
+        searched_symptoms=symptoms
+    )
 
-        lat, lon = get_coordinates(city)
-        medical_places = get_nearby_medical_places(lat, lon, city)
-
-        return render_template(
-            "result.html",
-            health=health,
-            doctor=doctor,
-            reason=reason,
-            medical_places=medical_places,
-            hospitals=medical_places,      # backward compatibility
-            searched_city=city,
-            searched_symptoms=symptoms
-        )
-
-    except Exception as e:
-        print("Analyze error:", e)
-        return "Something went wrong. Please try again."
-
-# ================= HUMAN-LIKE CHAT ASSISTANT =================
+# ================= CHAT ASSISTANT (FIXED) =================
 conversation_memory = []
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    try:
-        data = request.json or {}
-        user_msg = data.get("message", "").strip()
+    data = request.json or {}
+    msg = data.get("message", "").strip()
+    health_context = data.get("health", "")
 
-        if not user_msg:
-            return jsonify({"reply": "Please ask something 😊"})
+    if not msg:
+        return jsonify({"reply": "Please type something 😊"})
 
-        # Keep last 6 messages only
-        conversation_memory.append(f"User: {user_msg}")
-        if len(conversation_memory) > 6:
-            conversation_memory.pop(0)
+    msg_lower = msg.lower()
 
-        context = "\n".join(conversation_memory)
+    # Greeting handling
+    if msg_lower in ["hi", "hello", "hey", "hii"]:
+        return jsonify({"reply": "Hi 👋 I’m here to help. You can ask about your health result or what to do next."})
 
-        prompt = f"""
-You are MedAssist Help Assistant.
+    conversation_memory.append(f"User: {msg}")
+    if len(conversation_memory) > 6:
+        conversation_memory.pop(0)
 
-Speak like a calm, friendly human.
-Be supportive and natural.
-Do not repeat generic sentences.
-Do not diagnose diseases.
-Do not give dosage.
+    prompt = f"""
+You are a caring health assistant.
 
-Conversation so far:
-{context}
+Health result:
+{health_context}
 
-Respond clearly and helpfully.
+Conversation:
+{chr(10).join(conversation_memory)}
+
+User question:
+{msg}
+
+Reply naturally. No diagnosis. No dosage.
 """
 
-        reply = generate_ai_response(prompt)
+    reply = generate_ai_response(prompt)
 
-        if reply:
-            conversation_memory.append(f"Assistant: {reply}")
-            return jsonify({"reply": reply})
+    if reply:
+        conversation_memory.append(f"Assistant: {reply}")
+        return jsonify({"reply": reply})
 
-        # Smart fallback (never robotic)
-        fallback = f"I understand you're asking about '{user_msg}'. Could you explain a bit more so I can help you better?"
+    fallback_pool = [
+        "I can explain your health result in simple terms. What would you like to understand?",
+        "If you’re unsure what’s happening, I can walk you through it step by step.",
+        "Would you like me to explain the possible cause or what to do next?"
+    ]
 
-        return jsonify({"reply": fallback})
-
-    except Exception as e:
-        print("Chat error:", e)
-        return jsonify({"reply": "I'm having trouble responding right now. Please try again."})
+    return jsonify({"reply": random.choice(fallback_pool)})
 
 # ================= RUN =================
 if __name__ == "__main__":
