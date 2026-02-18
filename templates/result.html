@@ -41,7 +41,6 @@
         <strong>Sort by:</strong>
         <select id="sortSelect">
             <option value="distance">Distance</option>
-            <option value="type">Type</option>
         </select>
     </div>
 
@@ -50,27 +49,43 @@
         <h2>🏥 Nearby Hospitals & Doctors</h2>
 
         <div id="places-container">
-            {% for p in medical_places %}
-            <div class="hospital"
-                 data-distance="{{ p.distance }}"
-                 data-type="{{ p.type }}">
+            {% if medical_places and medical_places|length > 0 %}
 
-                <div>
-                    <strong>{{ p.name }}</strong><br>
-                    {{ p.type }} • {{ p.specialty }}<br>
-                    ⭐ {{ p.rating }} | {{ p.distance }} km
-                </div>
+                {% for p in medical_places %}
+                <div class="hospital"
+                     data-distance="{{ p.distance }}">
 
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                    <a class="map-btn" href="{{ p.map }}" target="_blank">Map</a>
-                    <a class="map-btn" href="{{ p.booking.google }}" target="_blank">
-                        Book Appointment
-                    </a>
+                    <div>
+                        <strong>{{ p.name }}</strong><br>
+
+                        <span>{{ p.specialty }}</span><br>
+
+                        <span>📍 {{ p.address }}</span><br>
+
+                        <span>📏 {{ p.distance }} km away</span>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <a class="map-btn" href="{{ p.map }}" target="_blank">🗺 Map</a>
+
+                        <a class="map-btn" href="{{ p.booking.google }}" target="_blank">
+                            📅 Book Appointment
+                        </a>
+
+                        <a class="map-btn" href="{{ p.booking.practo }}" target="_blank">
+                            Practo
+                        </a>
+
+                        <a class="map-btn" href="{{ p.booking.justdial }}" target="_blank">
+                            Justdial
+                        </a>
+                    </div>
                 </div>
-            </div>
+                {% endfor %}
+
             {% else %}
-            <p>No nearby medical facilities found.</p>
-            {% endfor %}
+                <p>No nearby medical facilities found.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -101,16 +116,10 @@
 <script>
 function sortPlaces() {
     const container = document.getElementById("places-container");
-    const cards = Array.from(container.children);
-    const sortBy = document.getElementById("sortSelect").value;
-
-    cards.sort((a, b) => {
-        if (sortBy === "distance") {
-            return parseFloat(a.dataset.distance) - parseFloat(b.dataset.distance);
-        }
-        return a.dataset.type.localeCompare(b.dataset.type);
-    });
-
+    const cards = Array.from(container.getElementsByClassName("hospital"));
+    cards.sort((a, b) =>
+        parseFloat(a.dataset.distance) - parseFloat(b.dataset.distance)
+    );
     cards.forEach(c => container.appendChild(c));
 }
 document.getElementById("sortSelect").addEventListener("change", sortPlaces);
