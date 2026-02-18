@@ -39,18 +39,33 @@ function addMsg(text, type) {
     if (type === "bot") speak(text);
 }
 
+// ENTER key support
+if (input) {
+    input.addEventListener("keydown", e => {
+        if (e.key === "Enter") sendMessage();
+    });
+}
+
 function sendMessage() {
     const t = input.value.trim();
     if (!t) return;
+
     addMsg(t, "user");
     input.value = "";
+
+    // ✅ GET HEALTH CONTEXT FROM PAGE
+    const healthText =
+        document.getElementById("assistant-text")?.innerText || "";
 
     fetch("/chat", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({message: t})
+        body: JSON.stringify({
+            message: t,
+            health: healthText
+        })
     })
     .then(r => r.json())
     .then(d => addMsg(d.reply, "bot"))
-    .catch(() => addMsg("Service unavailable.", "bot"));
+    .catch(() => addMsg("I’m having trouble responding right now.", "bot"));
 }
