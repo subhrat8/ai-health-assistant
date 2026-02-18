@@ -44,7 +44,7 @@ def distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a)), 2)
 
-# ================= NEARBY MEDICAL (FULL FEATURES) =================
+# ================= NEARBY MEDICAL =================
 def get_nearby_medical_places(lat, lon, city):
     results = []
 
@@ -102,7 +102,7 @@ def get_nearby_medical_places(lat, lon, city):
 
     return sorted(results, key=lambda x: x["distance"])[:8]
 
-# ================= AI GUIDANCE =================
+# ================= AI CORE =================
 def generate_ai_response(prompt):
     if not API_KEY:
         return None
@@ -111,7 +111,8 @@ def generate_ai_response(prompt):
         response = model.generate_content(prompt)
         if response and response.candidates:
             return response.candidates[0].content.parts[0].text.strip()
-    except:
+    except Exception as e:
+        print("Gemini error:", e)
         return None
     return None
 
@@ -132,16 +133,18 @@ You are a medical assistant.
 Symptoms:
 {symptoms}
 
-Explain:
+Explain in simple language:
 - Possible cause (general only)
 - Basic home care
-- When to see doctor
+- When to see a doctor
 
 End with:
 Doctor: <specialist>
 Reason: <short reason>
 
-No diagnosis. No dosage.
+Rules:
+- No diagnosis
+- No dosage
 """
 
         ai_text = generate_ai_response(prompt)
@@ -149,7 +152,8 @@ No diagnosis. No dosage.
         if not ai_text:
             ai_text = (
                 "Your symptoms may be related to a common health issue. "
-                "Ensure rest and hydration. If symptoms worsen, consult a doctor.\n\n"
+                "Ensure rest, hydration, and basic care. "
+                "If symptoms worsen or persist, consult a doctor.\n\n"
                 "Doctor: General Physician\n"
                 "Reason: Initial consultation recommended"
             )
@@ -178,7 +182,7 @@ No diagnosis. No dosage.
             doctor=doctor,
             reason=reason,
             medical_places=medical_places,
-            hospitals=medical_places,          # backward compatibility
+            hospitals=medical_places,      # backward compatibility
             searched_city=city,
             searched_symptoms=symptoms
         )
@@ -187,34 +191,54 @@ No diagnosis. No dosage.
         print("Analyze error:", e)
         return "Something went wrong. Please try again."
 
-# ================= CHAT ASSISTANT =================
+# ================= HUMAN-LIKE CHAT ASSISTANT =================
+conversation_memory = []
+
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         data = request.json or {}
-        user_msg = data.get("message", "")
+        user_msg = data.get("message", "").strip()
+
+        if not user_msg:
+            return jsonify({"reply": "Please ask something 😊"})
+
+        # Keep last 6 messages only
+        conversation_memory.append(f"User: {user_msg}")
+        if len(conversation_memory) > 6:
+            conversation_memory.pop(0)
+
+        context = "\n".join(conversation_memory)
 
         prompt = f"""
-You are MedAssist AI assistant.
+You are MedAssist Help Assistant.
 
-User message:
-{user_msg}
+Speak like a calm, friendly human.
+Be supportive and natural.
+Do not repeat generic sentences.
+Do not diagnose diseases.
+Do not give dosage.
 
-Be friendly.
-Give general health information.
-No diagnosis.
-No dosage.
+Conversation so far:
+{context}
+
+Respond clearly and helpfully.
 """
 
         reply = generate_ai_response(prompt)
-        if not reply:
-            reply = "I can help explain your results or guide next steps."
 
-        return jsonify({"reply": reply})
+        if reply:
+            conversation_memory.append(f"Assistant: {reply}")
+            return jsonify({"reply": reply})
+
+        # Smart fallback (never robotic)
+        fallback = f"I understand you're asking about '{user_msg}'. Could you explain a bit more so I can help you better?"
+
+        return jsonify({"reply": fallback})
 
     except Exception as e:
         print("Chat error:", e)
-        return jsonify({"reply": "Assistant unavailable right now."})
+        return jsonify({"reply": "I'm having trouble responding right now. Please try again."})
 
 # ================= RUN =================
 if __name__ == "__main__":
