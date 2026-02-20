@@ -11,7 +11,7 @@ function speak(text) {
 }
 
 // ================= DARK MODE =================
-const darkToggle = document.getElementById("dark-toggle");
+const darkToggle = document.getElementById("dark-toggle") || document.getElementById("darkToggle");
 if (darkToggle) {
     darkToggle.onclick = () => {
         document.body.classList.toggle("dark");
@@ -53,7 +53,7 @@ function sendMessage() {
     addMsg(t, "user");
     input.value = "";
 
-    // ✅ GET HEALTH CONTEXT FROM PAGE
+    // ✅ Health context (from result page)
     const healthText =
         document.getElementById("assistant-text")?.innerText || "";
 
