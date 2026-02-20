@@ -4,28 +4,51 @@
     <meta charset="UTF-8">
     <title>MedAssist AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .autocomplete-list {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 999;
+            border-radius: 6px;
+        }
+        .autocomplete-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .autocomplete-item:hover {
+            background: #f0f0f0;
+        }
+        .input-wrapper {
+            position: relative;
+        }
+    </style>
 </head>
 
 <body>
 
-<!-- DARK MODE -->
 <div class="top-actions">
     <button id="darkToggle">🌙</button>
 </div>
 
-<!-- HERO -->
 <section class="hero fade-in">
     <h1>🩺 MedAssist AI</h1>
     <p>Your Community Health Companion</p>
 </section>
 
-<!-- FORM -->
 <div class="container slide-up">
     <form id="healthForm" class="card form-card">
 
         <h2>Describe Your Health Issue</h2>
 
-        <input type="text" name="city" placeholder="Enter your city (optional)">
+        <!-- CITY INPUT WITH AUTOCOMPLETE -->
+        <div class="input-wrapper">
+            <input type="text" id="cityInput" name="city" placeholder="Enter your city (or allow GPS)">
+            <div id="autocompleteResults" class="autocomplete-list"></div>
+        </div>
 
         <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
 
@@ -47,8 +70,7 @@
     <div class="chat-header">MedAssist Assistant</div>
     <div class="chat-body" id="chat-body">
         <div class="bot-msg">
-            Hi 👋  
-            Ask me how to use this site or understand results.
+            Hi 👋 Ask me how to use this site or understand results.
         </div>
     </div>
     <div class="chat-input">
@@ -57,8 +79,49 @@
     </div>
 </div>
 
-<!-- GPS + FORM HANDLER -->
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
+
 <script>
+// ================= AUTOCOMPLETE =================
+const cityInput = document.getElementById("cityInput");
+const resultsBox = document.getElementById("autocompleteResults");
+
+cityInput.addEventListener("input", function () {
+    const query = this.value.trim();
+
+    if (query.length < 3) {
+        resultsBox.innerHTML = "";
+        return;
+    }
+
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
+        .then(res => res.json())
+        .then(data => {
+            resultsBox.innerHTML = "";
+
+            data.forEach(place => {
+                const div = document.createElement("div");
+                div.className = "autocomplete-item";
+                div.innerText = place.display_name;
+
+                div.onclick = function () {
+                    cityInput.value = place.display_name;
+                    resultsBox.innerHTML = "";
+                };
+
+                resultsBox.appendChild(div);
+            });
+        });
+});
+
+// Close dropdown if clicking outside
+document.addEventListener("click", function(e){
+    if (!cityInput.contains(e.target)) {
+        resultsBox.innerHTML = "";
+    }
+});
+
+// ================= GPS SUPPORT =================
 function getUserLocation(callback) {
     if (!navigator.geolocation) {
         callback(null);
@@ -73,10 +136,11 @@ function getUserLocation(callback) {
     );
 }
 
+// ================= FORM SUBMIT =================
 document.getElementById("healthForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
+
+    const formData = new FormData(e.target);
 
     getUserLocation(function (location) {
         if (location) {
@@ -94,6 +158,5 @@ document.getElementById("healthForm").addEventListener("submit", function (e) {
 });
 </script>
 
-<script src="{{ url_for('static', filename='assistant.js') }}"></script>
 </body>
 </html>
