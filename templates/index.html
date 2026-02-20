@@ -21,11 +21,11 @@
 
 <!-- FORM -->
 <div class="container slide-up">
-    <form action="/analyze" method="POST" class="card form-card">
+    <form id="healthForm" class="card form-card">
 
         <h2>Describe Your Health Issue</h2>
 
-        <input type="text" name="city" placeholder="Enter your city" required>
+        <input type="text" name="city" placeholder="Enter your city (optional)">
 
         <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
 
@@ -56,6 +56,43 @@
         <button onclick="sendMessage()">➤</button>
     </div>
 </div>
+
+<!-- GPS + FORM HANDLER -->
+<script>
+function getUserLocation(callback) {
+    if (!navigator.geolocation) {
+        callback(null);
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        pos => callback({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude
+        }),
+        () => callback(null)
+    );
+}
+
+document.getElementById("healthForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    getUserLocation(function (location) {
+        if (location) {
+            formData.append("lat", location.lat);
+            formData.append("lon", location.lon);
+        }
+
+        fetch("/analyze", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.text())
+        .then(html => document.body.innerHTML = html);
+    });
+});
+</script>
 
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
 </body>
