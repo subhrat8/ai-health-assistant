@@ -1,98 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>MedAssist AI – Result</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta charset="UTF-8">
+<title>MedAssist AI – Result</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+.hospital {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px;
+    border-bottom: 1px solid #eee;
+}
+.h-left { line-height: 1.6; }
+.h-right { display: flex; gap: 10px; }
+.map-btn {
+    background: #0b5ed7;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+}
+</style>
 </head>
 
 <body>
 
-<button id="dark-toggle">🌙</button>
-
 <div class="container">
 
-    <div class="header">
-        <h1>🩺 MedAssist AI</h1>
-        <p>Your Community Health Assistant</p>
+<h2>🤖 AI Health Guidance</h2>
+<p id="assistant-text">{{ health }}</p>
+
+<div class="card">
+<strong>Sort by:</strong>
+<select id="sortSelect">
+    <option value="distance">Distance</option>
+    <option value="rating">Rating</option>
+</select>
+</div>
+
+<div id="places-container">
+{% for p in medical_places %}
+<div class="hospital"
+     data-distance="{{ p.distance }}"
+     data-rating="{{ p.rating }}">
+
+    <div class="h-left">
+        <strong>{{ p.name }}</strong><br>
+        {{ p.specialty }}<br>
+        ⭐ {{ p.rating }} / 5<br>
+        📏 {{ p.distance }} km away
     </div>
 
-    <!-- AI GUIDANCE -->
-    <div class="card assistant-card">
-        <h2>🤖 AI Health Guidance</h2>
-        <p id="assistant-text">{{ health }}</p>
+    <div class="h-right">
+        <a class="map-btn" href="{{ p.map }}" target="_blank">🗺 Map</a>
+        <a class="map-btn" href="{{ p.booking.google }}" target="_blank">📅 Book</a>
     </div>
-
-    <!-- PRECAUTIONS -->
-    <div class="card doctor-box">
-        <h2>⚠️ What to Avoid / Precautions</h2>
-        <ul>
-            {% for p in precautions %}
-            <li>{{ p }}</li>
-            {% else %}
-            <li>Take rest and stay hydrated.</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- SORT -->
-    <div class="card">
-        <strong>Sort by:</strong>
-        <select id="sortSelect">
-            <option value="distance">Distance</option>
-            <option value="rating">Rating</option>
-        </select>
-    </div>
-
-    <!-- HOSPITALS -->
-    <div class="card">
-        <h2>🏥 Nearby Hospitals & Doctors</h2>
-
-        <div id="places-container">
-            {% for p in medical_places %}
-            <div class="hospital"
-                 data-distance="{{ p.distance }}"
-                 data-rating="{{ p.rating }}">
-
-                <strong>{{ p.name }}</strong><br>
-                {{ p.specialty }}<br>
-                ⭐ {{ p.rating }} / 5<br>
-                📏 {{ p.distance }} km away<br><br>
-
-                <a class="map-btn" href="{{ p.map }}" target="_blank">🗺 Map</a>
-                <a class="map-btn" href="{{ p.booking.google }}" target="_blank">📅 Book</a>
-            </div>
-            {% else %}
-            <p>No nearby medical facilities found.</p>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="search-again">
-        <a href="/">🔁 Search Again</a>
-    </div>
+</div>
+{% endfor %}
+</div>
 
 </div>
 
 <script>
-function sortPlaces() {
+document.getElementById("sortSelect").addEventListener("change", () => {
     const container = document.getElementById("places-container");
-    const cards = Array.from(container.getElementsByClassName("hospital"));
-    const sortBy = document.getElementById("sortSelect").value;
+    const cards = Array.from(container.children);
+    const mode = document.getElementById("sortSelect").value;
 
     cards.sort((a, b) => {
-        if (sortBy === "distance") {
+        if (mode === "distance") {
             return parseFloat(a.dataset.distance) - parseFloat(b.dataset.distance);
         }
         return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
     });
 
     cards.forEach(c => container.appendChild(c));
-}
-document.getElementById("sortSelect").addEventListener("change", sortPlaces);
+});
 </script>
 
-<script src="{{ url_for('static', filename='assistant.js') }}"></script>
 </body>
 </html>
