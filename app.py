@@ -1,4 +1,4 @@
-import os, math, re, requests, random
+import os, math, requests, random
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -15,13 +15,15 @@ def distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat/2)**2 +
-         math.cos(math.radians(lat1)) *
-         math.cos(math.radians(lat2)) *
-         math.sin(dlon/2)**2)
+    a = (
+        math.sin(dlat/2)**2 +
+        math.cos(math.radians(lat1)) *
+        math.cos(math.radians(lat2)) *
+        math.sin(dlon/2)**2
+    )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
-# ---------------- GEOCODE CITY ----------------
+# ---------------- GEOCODE ----------------
 def get_coordinates(city):
     r = requests.get(
         "https://nominatim.openstreetmap.org/search",
@@ -45,20 +47,29 @@ def get_nearby_medical_places(lat, lon, city):
     );
     out;
     """
+
     results = []
     r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+
     for e in r.json().get("elements", []):
         tags = e.get("tags", {})
-        if "name" in tags:
-            results.append({
-                "name": tags["name"],
-                "specialty": tags.get("healthcare:speciality", "General Care"),
-                "distance": distance(lat, lon, e["lat"], e["lon"]),
-                "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
-                "booking": {
-                    "google": f"https://www.google.com/maps/search/{tags['name']}+{city}"
-                }
-            })
+        name = tags.get("name")
+        if not name:
+            continue
+
+        results.append({
+            "name": name,
+            "specialty": tags.get("healthcare:speciality", "General Care"),
+            "distance": distance(lat, lon, e["lat"], e["lon"]),
+            "rating": round(3.5 + (hash(name) % 15) / 10, 1),
+            "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
+            "booking": {
+                "google": f"https://www.google.com/maps/search/{name}+{city}",
+                "practo": f"https://www.practo.com/search/doctors?query={name}+{city}",
+                "justdial": f"https://www.justdial.com/search?q={name}+{city}"
+            }
+        })
+
     return sorted(results, key=lambda x: x["distance"])[:8]
 
 # ---------------- AI ----------------
@@ -95,21 +106,29 @@ def analyze():
 Explain symptoms simply:
 {symptoms}
 
+Give general precautions.
 End with:
-Doctor: <specialist>
-Reason: <short reason>
+Precautions:
+- point 1
+- point 2
+- point 3
 """
+
     ai_text = ai_response(prompt) or (
-        "General health guidance.\nDoctor: General Physician\nReason: Initial consultation"
+        "General health guidance.\n"
+        "Precautions:\n"
+        "- Take adequate rest\n"
+        "- Stay hydrated\n"
+        "- Avoid stress"
     )
 
-    health, doctor, reason = "", "General Physician", "Initial consultation"
+    health = ""
+    precautions = []
+
     for line in ai_text.splitlines():
-        if line.lower().startswith("doctor:"):
-            doctor = line.split(":")[1].strip()
-        elif line.lower().startswith("reason:"):
-            reason = line.split(":")[1].strip()
-        else:
+        if line.startswith("-"):
+            precautions.append(line.replace("-", "").strip())
+        elif not line.lower().startswith("precautions"):
             health += line + " "
 
     medical_places = get_nearby_medical_places(lat, lon, city)
@@ -117,28 +136,21 @@ Reason: <short reason>
     return render_template(
         "result.html",
         health=health.strip(),
-        doctor=doctor,
-        reason=reason,
+        precautions=precautions,
         medical_places=medical_places
     )
 
 # ---------------- CHAT ----------------
-conversation_memory = []
-
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json or {}
     msg = data.get("message", "")
     health = data.get("health", "")
 
-    prompt = f"""
-Health context:
-{health}
+    reply = ai_response(
+        f"Health context:\n{health}\nUser: {msg}\nReply naturally."
+    )
 
-User: {msg}
-Respond naturally.
-"""
-    reply = ai_response(prompt)
     return jsonify({"reply": reply or "How can I help you further?"})
 
 if __name__ == "__main__":
