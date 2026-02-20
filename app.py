@@ -10,7 +10,7 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY, transport="rest")
 
-# ---------- DISTANCE ----------
+# ---------------- DISTANCE ----------------
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -23,7 +23,7 @@ def distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
-# ---------- GEOCODE ----------
+# ---------------- GEOCODE ----------------
 def get_coordinates(city):
     r = requests.get(
         "https://nominatim.openstreetmap.org/search",
@@ -36,7 +36,7 @@ def get_coordinates(city):
         return float(d[0]["lat"]), float(d[0]["lon"])
     return None, None
 
-# ---------- HOSPITAL SEARCH ----------
+# ---------------- HOSPITAL SEARCH ----------------
 def get_nearby_medical_places(lat, lon, city):
     query = f"""
     [out:json];
@@ -47,8 +47,8 @@ def get_nearby_medical_places(lat, lon, city):
     );
     out;
     """
-    results = []
     r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+    results = []
 
     for e in r.json().get("elements", []):
         tags = e.get("tags", {})
@@ -60,16 +60,14 @@ def get_nearby_medical_places(lat, lon, city):
             "name": name,
             "specialty": tags.get("healthcare:speciality", "General Care"),
             "distance": distance(lat, lon, e["lat"], e["lon"]),
-            "rating": round(3.5 + (hash(name) % 15) / 10, 1),
+            "rating": round(3.6 + (hash(name) % 14) / 10, 1),
             "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
-            "booking": {
-                "google": f"https://www.google.com/maps/search/{name}+{city}"
-            }
+            "booking": f"https://www.google.com/maps/search/{name}+{city}"
         })
 
     return results
 
-# ---------- AI ----------
+# ---------------- AI ----------------
 def ai_response(prompt):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
@@ -78,7 +76,7 @@ def ai_response(prompt):
     except:
         return None
 
-# ---------- ROUTES ----------
+# ---------------- ROUTES ----------------
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -95,20 +93,33 @@ def analyze():
     else:
         lat, lon = get_coordinates(city)
 
-    prompt = f"""
-Explain symptoms simply:
+    # AI health guidance
+    health_prompt = f"""
+Explain the symptoms simply:
+{symptoms}
+"""
+    health = ai_response(health_prompt) or "General health guidance. Take rest and stay hydrated."
+
+    # AI precautions
+    avoid_prompt = f"""
+User symptoms:
 {symptoms}
 
-Give general precautions.
+List simple precautions and things to avoid.
+No medicines.
 """
-    health = ai_response(prompt) or "General health guidance. Take rest and stay hydrated."
+    precautions = ai_response(avoid_prompt) or "Avoid stress, dehydration, and irregular sleep."
 
-    medical_places = get_nearby_medical_places(lat, lon, city)
+    hospitals = get_nearby_medical_places(lat, lon, city)
+
+    # DEFAULT sort by distance, take TOP 7
+    hospitals = sorted(hospitals, key=lambda x: x["distance"])[:7]
 
     return render_template(
         "result.html",
         health=health,
-        medical_places=medical_places
+        precautions=precautions,
+        medical_places=hospitals
     )
 
 @app.route("/chat", methods=["POST"])
