@@ -30,7 +30,7 @@ def get_coordinates(city):
             return float(data[0]["lat"]), float(data[0]["lon"])
     except:
         pass
-    return 20.5937, 78.9629
+    return 20.5937, 78.9629  # India fallback
 
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
@@ -47,6 +47,7 @@ def distance(lat1, lon1, lat2, lon2):
 # ================= NEARBY MEDICAL =================
 def get_nearby_medical_places(lat, lon, city):
     results = []
+
     query = f"""
     [out:json];
     (
@@ -116,6 +117,15 @@ def analyze():
     city = request.form.get("city", "")
     symptoms = request.form.get("symptoms", "")
 
+    # 🟢 NEW: GPS SUPPORT
+    lat = request.form.get("lat")
+    lon = request.form.get("lon")
+
+    if lat and lon:
+        lat, lon = float(lat), float(lon)
+    else:
+        lat, lon = get_coordinates(city)
+
     prompt = f"""
 Explain symptoms in simple terms:
 {symptoms}
@@ -149,7 +159,6 @@ No diagnosis. No dosage.
         else:
             health += line + " "
 
-    lat, lon = get_coordinates(city)
     medical_places = get_nearby_medical_places(lat, lon, city)
 
     return render_template(
@@ -163,7 +172,7 @@ No diagnosis. No dosage.
         searched_symptoms=symptoms
     )
 
-# ================= CHAT ASSISTANT (FIXED) =================
+# ================= CHAT ASSISTANT =================
 conversation_memory = []
 
 @app.route("/chat", methods=["POST"])
@@ -175,10 +184,7 @@ def chat():
     if not msg:
         return jsonify({"reply": "Please type something 😊"})
 
-    msg_lower = msg.lower()
-
-    # Greeting handling
-    if msg_lower in ["hi", "hello", "hey", "hii"]:
+    if msg.lower() in ["hi", "hello", "hey", "hii"]:
         return jsonify({"reply": "Hi 👋 I’m here to help. You can ask about your health result or what to do next."})
 
     conversation_memory.append(f"User: {msg}")
