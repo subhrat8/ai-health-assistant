@@ -1,93 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>MedAssist AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .autocomplete-list {
-            position: absolute;
-            background: white;
-            border: 1px solid #ccc;
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 999;
-            border-radius: 6px;
-        }
-        .autocomplete-item {
-            padding: 8px;
-            cursor: pointer;
-        }
-        .autocomplete-item:hover {
-            background: #f0f0f0;
-        }
-        .input-wrapper {
-            position: relative;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="top-actions">
-    <button id="darkToggle">🌙</button>
-</div>
-
-<section class="hero fade-in">
-    <h1>🩺 MedAssist AI</h1>
-    <p>Your Community Health Companion</p>
-</section>
-
-<div class="container slide-up">
-    <form id="healthForm" class="card form-card">
-
-        <h2>Describe Your Health Issue</h2>
-
-        <!-- CITY INPUT WITH AUTOCOMPLETE -->
-        <div class="input-wrapper">
-            <input type="text" id="cityInput" name="city" placeholder="Enter your city (or allow GPS)">
-            <div id="autocompleteResults" class="autocomplete-list"></div>
-        </div>
-
-        <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
-
-        <select name="language">
-            <option value="en-US">English</option>
-            <option value="hi-IN">Hindi</option>
-            <option value="te-IN">Telugu</option>
-            <option value="ta-IN">Tamil</option>
-        </select>
-
-        <button type="submit">🔍 Get Guidance</button>
-    </form>
-</div>
-
-<!-- FLOATING CHAT -->
-<div id="chat-bubble">💬</div>
-
-<div id="chat-box">
-    <div class="chat-header">MedAssist Assistant</div>
-    <div class="chat-body" id="chat-body">
-        <div class="bot-msg">
-            Hi 👋 Ask me how to use this site or understand results.
-        </div>
-    </div>
-    <div class="chat-input">
-        <input type="text" id="chat-input" placeholder="Ask something...">
-        <button onclick="sendMessage()">➤</button>
-    </div>
-</div>
-
-<script src="{{ url_for('static', filename='assistant.js') }}"></script>
-
 <script>
+let selectedLat = null;
+let selectedLon = null;
+
 // ================= AUTOCOMPLETE =================
 const cityInput = document.getElementById("cityInput");
 const resultsBox = document.getElementById("autocompleteResults");
 
 cityInput.addEventListener("input", function () {
     const query = this.value.trim();
+    selectedLat = null;
+    selectedLon = null;
 
     if (query.length < 3) {
         resultsBox.innerHTML = "";
@@ -106,6 +28,8 @@ cityInput.addEventListener("input", function () {
 
                 div.onclick = function () {
                     cityInput.value = place.display_name;
+                    selectedLat = place.lat;
+                    selectedLon = place.lon;
                     resultsBox.innerHTML = "";
                 };
 
@@ -114,19 +38,9 @@ cityInput.addEventListener("input", function () {
         });
 });
 
-// Close dropdown if clicking outside
-document.addEventListener("click", function(e){
-    if (!cityInput.contains(e.target)) {
-        resultsBox.innerHTML = "";
-    }
-});
-
-// ================= GPS SUPPORT =================
+// ================= GPS =================
 function getUserLocation(callback) {
-    if (!navigator.geolocation) {
-        callback(null);
-        return;
-    }
+    if (!navigator.geolocation) return callback(null);
     navigator.geolocation.getCurrentPosition(
         pos => callback({
             lat: pos.coords.latitude,
@@ -139,24 +53,31 @@ function getUserLocation(callback) {
 // ================= FORM SUBMIT =================
 document.getElementById("healthForm").addEventListener("submit", function (e) {
     e.preventDefault();
-
     const formData = new FormData(e.target);
 
-    getUserLocation(function (location) {
-        if (location) {
-            formData.append("lat", location.lat);
-            formData.append("lon", location.lon);
-        }
-
-        fetch("/analyze", {
-            method: "POST",
-            body: formData
-        })
-        .then(res => res.text())
-        .then(html => document.body.innerHTML = html);
-    });
+    if (selectedLat && selectedLon) {
+        // ✅ City chosen → use it
+        formData.append("lat", selectedLat);
+        formData.append("lon", selectedLon);
+        submitForm(formData);
+    } else {
+        // 🔁 No city chosen → try GPS
+        getUserLocation(loc => {
+            if (loc) {
+                formData.append("lat", loc.lat);
+                formData.append("lon", loc.lon);
+            }
+            submitForm(formData);
+        });
+    }
 });
-</script>
 
-</body>
-</html>
+function submitForm(formData) {
+    fetch("/analyze", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.text())
+    .then(html => document.body.innerHTML = html);
+}
+</script>
