@@ -1,67 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MedAssist AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .input-wrapper { position: relative; }
+        .autocomplete-list {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 999;
+            border-radius: 6px;
+        }
+        .autocomplete-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .autocomplete-item:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="top-actions">
+    <button id="darkToggle">🌙</button>
+</div>
+
+<section class="hero fade-in">
+    <h1>🩺 MedAssist AI</h1>
+    <p>Your Community Health Companion</p>
+</section>
+
+<div class="container slide-up">
+    <form id="healthForm" class="card form-card">
+        <h2>Describe Your Health Issue</h2>
+
+        <!-- CITY AUTOCOMPLETE -->
+        <div class="input-wrapper">
+            <input type="text" id="cityInput" name="city" placeholder="Enter your city">
+            <div id="autocompleteResults" class="autocomplete-list"></div>
+        </div>
+
+        <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
+
+        <select name="language">
+            <option value="en-US">English</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="te-IN">Telugu</option>
+            <option value="ta-IN">Tamil</option>
+        </select>
+
+        <button type="submit">🔍 Get Guidance</button>
+    </form>
+</div>
+
+<!-- CHAT -->
+<div id="chat-bubble">💬</div>
+<div id="chat-box">
+    <div class="chat-header">MedAssist Assistant</div>
+    <div class="chat-body" id="chat-body">
+        <div class="bot-msg">Hi 👋 Ask me about your health results.</div>
+    </div>
+    <div class="chat-input">
+        <input type="text" id="chat-input" placeholder="Ask something...">
+        <button onclick="sendMessage()">➤</button>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
+
 <script>
 let selectedLat = null;
 let selectedLon = null;
 
-// ================= AUTOCOMPLETE =================
 const cityInput = document.getElementById("cityInput");
 const resultsBox = document.getElementById("autocompleteResults");
 
+// AUTOCOMPLETE
 cityInput.addEventListener("input", function () {
     const query = this.value.trim();
     selectedLat = null;
     selectedLon = null;
+    resultsBox.innerHTML = "";
 
-    if (query.length < 3) {
-        resultsBox.innerHTML = "";
-        return;
-    }
+    if (query.length < 3) return;
 
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
         .then(res => res.json())
         .then(data => {
-            resultsBox.innerHTML = "";
-
             data.forEach(place => {
                 const div = document.createElement("div");
                 div.className = "autocomplete-item";
                 div.innerText = place.display_name;
-
-                div.onclick = function () {
+                div.onclick = () => {
                     cityInput.value = place.display_name;
                     selectedLat = place.lat;
                     selectedLon = place.lon;
                     resultsBox.innerHTML = "";
                 };
-
                 resultsBox.appendChild(div);
             });
         });
 });
 
-// ================= GPS =================
+// GPS
 function getUserLocation(callback) {
     if (!navigator.geolocation) return callback(null);
     navigator.geolocation.getCurrentPosition(
-        pos => callback({
-            lat: pos.coords.latitude,
-            lon: pos.coords.longitude
-        }),
+        pos => callback({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
         () => callback(null)
     );
 }
 
-// ================= FORM SUBMIT =================
+// FORM SUBMIT
 document.getElementById("healthForm").addEventListener("submit", function (e) {
     e.preventDefault();
     const formData = new FormData(e.target);
 
     if (selectedLat && selectedLon) {
-        // ✅ City chosen → use it
         formData.append("lat", selectedLat);
         formData.append("lon", selectedLon);
         submitForm(formData);
     } else {
-        // 🔁 No city chosen → try GPS
         getUserLocation(loc => {
             if (loc) {
                 formData.append("lat", loc.lat);
@@ -73,11 +139,11 @@ document.getElementById("healthForm").addEventListener("submit", function (e) {
 });
 
 function submitForm(formData) {
-    fetch("/analyze", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.text())
-    .then(html => document.body.innerHTML = html);
+    fetch("/analyze", { method: "POST", body: formData })
+        .then(res => res.text())
+        .then(html => document.body.innerHTML = html);
 }
 </script>
+
+</body>
+</html>
