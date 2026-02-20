@@ -10,7 +10,7 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY, transport="rest")
 
-# ---------------- DISTANCE ----------------
+# ---------- DISTANCE ----------
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -23,7 +23,7 @@ def distance(lat1, lon1, lat2, lon2):
     )
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
-# ---------------- GEOCODE ----------------
+# ---------- GEOCODE ----------
 def get_coordinates(city):
     r = requests.get(
         "https://nominatim.openstreetmap.org/search",
@@ -36,7 +36,7 @@ def get_coordinates(city):
         return float(d[0]["lat"]), float(d[0]["lon"])
     return None, None
 
-# ---------------- HOSPITAL SEARCH ----------------
+# ---------- HOSPITAL SEARCH ----------
 def get_nearby_medical_places(lat, lon, city):
     query = f"""
     [out:json];
@@ -47,7 +47,6 @@ def get_nearby_medical_places(lat, lon, city):
     );
     out;
     """
-
     results = []
     r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
 
@@ -64,15 +63,13 @@ def get_nearby_medical_places(lat, lon, city):
             "rating": round(3.5 + (hash(name) % 15) / 10, 1),
             "map": f"https://www.google.com/maps?q={e['lat']},{e['lon']}",
             "booking": {
-                "google": f"https://www.google.com/maps/search/{name}+{city}",
-                "practo": f"https://www.practo.com/search/doctors?query={name}+{city}",
-                "justdial": f"https://www.justdial.com/search?q={name}+{city}"
+                "google": f"https://www.google.com/maps/search/{name}+{city}"
             }
         })
 
-    return sorted(results, key=lambda x: x["distance"])[:8]
+    return results
 
-# ---------------- AI ----------------
+# ---------- AI ----------
 def ai_response(prompt):
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
@@ -81,76 +78,43 @@ def ai_response(prompt):
     except:
         return None
 
-# ---------------- ROUTES ----------------
+# ---------- ROUTES ----------
 @app.route("/")
 def home():
     return render_template("index.html")
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    city = request.form.get("city", "")
-    symptoms = request.form.get("symptoms", "")
+    city = request.form.get("city")
+    symptoms = request.form.get("symptoms")
     lat = request.form.get("lat")
     lon = request.form.get("lon")
 
     if lat and lon:
         lat, lon = float(lat), float(lon)
-    elif city:
-        lat, lon = get_coordinates(city)
-        if not lat:
-            return "Invalid city selected."
     else:
-        return "Please select a city or allow location access."
+        lat, lon = get_coordinates(city)
 
     prompt = f"""
 Explain symptoms simply:
 {symptoms}
 
 Give general precautions.
-End with:
-Precautions:
-- point 1
-- point 2
-- point 3
 """
-
-    ai_text = ai_response(prompt) or (
-        "General health guidance.\n"
-        "Precautions:\n"
-        "- Take adequate rest\n"
-        "- Stay hydrated\n"
-        "- Avoid stress"
-    )
-
-    health = ""
-    precautions = []
-
-    for line in ai_text.splitlines():
-        if line.startswith("-"):
-            precautions.append(line.replace("-", "").strip())
-        elif not line.lower().startswith("precautions"):
-            health += line + " "
+    health = ai_response(prompt) or "General health guidance. Take rest and stay hydrated."
 
     medical_places = get_nearby_medical_places(lat, lon, city)
 
     return render_template(
         "result.html",
-        health=health.strip(),
-        precautions=precautions,
+        health=health,
         medical_places=medical_places
     )
 
-# ---------------- CHAT ----------------
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.json or {}
-    msg = data.get("message", "")
-    health = data.get("health", "")
-
-    reply = ai_response(
-        f"Health context:\n{health}\nUser: {msg}\nReply naturally."
-    )
-
+    msg = request.json.get("message", "")
+    reply = ai_response(msg)
     return jsonify({"reply": reply or "How can I help you further?"})
 
 if __name__ == "__main__":
