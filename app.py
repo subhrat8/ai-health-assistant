@@ -1,4 +1,4 @@
-import os, math, requests, random
+import os, math, requests
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -7,37 +7,47 @@ load_dotenv()
 app = Flask(__name__)
 
 API_KEY = os.getenv("GEMINI_API_KEY")
+
 if API_KEY:
-    genai.configure(api_key=API_KEY, transport="rest")
+    genai.configure(api_key=API_KEY)
 
 # ---------------- DISTANCE ----------------
 def distance(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
+
     a = (
         math.sin(dlat/2)**2 +
         math.cos(math.radians(lat1)) *
         math.cos(math.radians(lat2)) *
         math.sin(dlon/2)**2
     )
+
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
-# ---------------- GEOCODE ----------------
+
+# ---------------- GEOCODE CITY ----------------
 def get_coordinates(city):
+
     r = requests.get(
         "https://nominatim.openstreetmap.org/search",
         params={"q": city, "format": "json", "limit": 1},
         headers={"User-Agent": "medassist"},
         timeout=8
     )
-    d = r.json()
-    if d:
-        return float(d[0]["lat"]), float(d[0]["lon"])
+
+    data = r.json()
+
+    if data:
+        return float(data[0]["lat"]), float(data[0]["lon"])
+
     return None, None
+
 
 # ---------------- HOSPITAL SEARCH ----------------
 def get_nearby_medical_places(lat, lon, city):
+
     query = f"""
     [out:json];
     (
@@ -47,12 +57,19 @@ def get_nearby_medical_places(lat, lon, city):
     );
     out;
     """
-    r = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=15)
+
+    r = requests.post(
+        "https://overpass-api.de/api/interpreter",
+        data=query,
+        timeout=15
+    )
+
     results = []
 
     for e in r.json().get("elements", []):
         tags = e.get("tags", {})
         name = tags.get("name")
+
         if not name:
             continue
 
@@ -67,66 +84,161 @@ def get_nearby_medical_places(lat, lon, city):
 
     return results
 
-# ---------------- AI ----------------
+
+# ---------------- AI RESPONSE ----------------
 def ai_response(prompt):
+
     try:
+
         model = genai.GenerativeModel("gemini-1.5-flash")
+
         res = model.generate_content(prompt)
-        return res.candidates[0].content.parts[0].text.strip()
+
+        return res.text
+
     except:
+
         return None
 
-# ---------------- ROUTES ----------------
+
+# ---------------- HOME ----------------
 @app.route("/")
 def home():
+
     return render_template("index.html")
 
+
+# ---------------- ANALYZE ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
+
     city = request.form.get("city")
     symptoms = request.form.get("symptoms")
+
     lat = request.form.get("lat")
     lon = request.form.get("lon")
 
     if lat and lon:
+
         lat, lon = float(lat), float(lon)
+
     else:
+
         lat, lon = get_coordinates(city)
 
-    # AI health guidance
-    health_prompt = f"""
-Explain the symptoms simply:
-{symptoms}
-"""
-    health = ai_response(health_prompt) or "General health guidance. Take rest and stay hydrated."
+    # AI PROMPT
+    prompt = f"""
+User symptoms: {symptoms}
 
-    # AI precautions
-    avoid_prompt = f"""
-User symptoms:
-{symptoms}
+Provide health guidance in this format.
 
-List simple precautions and things to avoid.
-No medicines.
+Health Insight:
+Explain what the symptoms may indicate in 1-2 sentences.
+
+Possible Causes:
+List 2-3 possible causes.
+
+What Helps:
+List 3 simple things that may help.
+
+What to Avoid:
+List 3 things to avoid.
+
+Do not provide medicines or diagnosis.
 """
-    precautions = ai_response(avoid_prompt) or "Avoid stress, dehydration, and irregular sleep."
+
+    ai_text = ai_response(prompt)
+
+    if not ai_text:
+
+        ai_text = """
+Health Insight:
+These symptoms may be related to fatigue or dehydration.
+
+Possible Causes:
+• Lack of sleep
+• Dehydration
+• Stress
+
+What Helps:
+• Drink enough water
+• Get adequate rest
+• Reduce strain
+
+What to Avoid:
+• Skipping meals
+• Dehydration
+• Excess stress
+"""
+
+    sections = {
+        "insight": "",
+        "causes": "",
+        "helps": "",
+        "avoid": ""
+    }
+
+    current = None
+
+    for line in ai_text.splitlines():
+
+        l = line.lower()
+
+        if "health insight" in l:
+            current = "insight"
+            continue
+
+        elif "possible causes" in l:
+            current = "causes"
+            continue
+
+        elif "what helps" in l:
+            current = "helps"
+            continue
+
+        elif "what to avoid" in l:
+            current = "avoid"
+            continue
+
+        if current and line.strip():
+
+            sections[current] += line + "<br>"
+
 
     hospitals = get_nearby_medical_places(lat, lon, city)
 
-    # DEFAULT sort by distance, take TOP 7
     hospitals = sorted(hospitals, key=lambda x: x["distance"])[:7]
 
+
     return render_template(
+
         "result.html",
-        health=health,
-        precautions=precautions,
+
+        insight=sections["insight"],
+
+        causes=sections["causes"],
+
+        helps=sections["helps"],
+
+        avoid=sections["avoid"],
+
         medical_places=hospitals
+
     )
 
+
+# ---------------- CHAT ----------------
 @app.route("/chat", methods=["POST"])
 def chat():
-    msg = request.json.get("message", "")
+
+    msg = request.json.get("message")
+
     reply = ai_response(msg)
+
     return jsonify({"reply": reply or "How can I help you further?"})
 
+
+# ---------------- RUN ----------------
 if __name__ == "__main__":
+
     app.run(debug=True)
