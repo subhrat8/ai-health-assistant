@@ -27,7 +27,7 @@ def distance(lat1, lon1, lat2, lon2):
     return round(2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
 
-# ---------------- GEOCODE CITY ----------------
+# ---------------- CITY COORDINATES ----------------
 def get_coordinates(city):
 
     r = requests.get(
@@ -45,7 +45,7 @@ def get_coordinates(city):
     return None, None
 
 
-# ---------------- HOSPITAL SEARCH ----------------
+# ---------------- NEARBY HOSPITALS ----------------
 def get_nearby_medical_places(lat, lon, city):
 
     query = f"""
@@ -92,23 +92,24 @@ def ai_response(prompt):
 
         model = genai.GenerativeModel("gemini-1.5-flash")
 
-        res = model.generate_content(prompt)
+        response = model.generate_content(prompt)
 
-        return res.text
+        if response and response.text:
+            return response.text.strip()
 
-    except:
+    except Exception as e:
+        print("AI error:", e)
 
-        return None
+    return None
 
 
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
-
     return render_template("index.html")
 
 
-# ---------------- ANALYZE ----------------
+# ---------------- ANALYZE SYMPTOMS ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
 
@@ -119,30 +120,26 @@ def analyze():
     lon = request.form.get("lon")
 
     if lat and lon:
-
         lat, lon = float(lat), float(lon)
-
     else:
-
         lat, lon = get_coordinates(city)
 
-    # AI PROMPT
     prompt = f"""
 User symptoms: {symptoms}
 
 Provide health guidance in this format.
 
 Health Insight:
-Explain what the symptoms may indicate in 1-2 sentences.
+Explain the symptoms simply.
 
 Possible Causes:
 List 2-3 possible causes.
 
 What Helps:
-List 3 simple things that may help.
+List helpful actions.
 
 What to Avoid:
-List 3 things to avoid.
+List precautions.
 
 Do not provide medicines or diagnosis.
 """
@@ -153,7 +150,7 @@ Do not provide medicines or diagnosis.
 
         ai_text = """
 Health Insight:
-These symptoms may be related to fatigue or dehydration.
+Your symptoms may be related to fatigue or dehydration.
 
 Possible Causes:
 • Lack of sleep
@@ -161,14 +158,14 @@ Possible Causes:
 • Stress
 
 What Helps:
-• Drink enough water
-• Get adequate rest
+• Drink water
+• Get enough rest
 • Reduce strain
 
 What to Avoid:
 • Skipping meals
+• Stress
 • Dehydration
-• Excess stress
 """
 
     sections = {
@@ -201,7 +198,6 @@ What to Avoid:
             continue
 
         if current and line.strip():
-
             sections[current] += line + "<br>"
 
 
@@ -209,36 +205,51 @@ What to Avoid:
 
     hospitals = sorted(hospitals, key=lambda x: x["distance"])[:7]
 
-
     return render_template(
-
         "result.html",
-
         insight=sections["insight"],
-
         causes=sections["causes"],
-
         helps=sections["helps"],
-
         avoid=sections["avoid"],
-
         medical_places=hospitals
-
     )
 
 
-# ---------------- CHAT ----------------
+# ---------------- WEBSITE ASSISTANT ----------------
 @app.route("/chat", methods=["POST"])
 def chat():
 
-    msg = request.json.get("message")
+    data = request.get_json()
 
-    reply = ai_response(msg)
+    message = data.get("message", "")
 
-    return jsonify({"reply": reply or "How can I help you further?"})
+    if not message:
+        return jsonify({"reply": "Please ask something."})
+
+    prompt = f"""
+You are MedAssist Assistant.
+
+MedAssist is a health website where users:
+• Enter symptoms
+• Enter their city
+• Receive health guidance
+• See nearby hospitals
+
+Your job is to help users understand the website.
+
+User question:
+{message}
+
+Reply in a friendly short way.
+"""
+
+    reply = ai_response(prompt)
+
+    return jsonify({
+        "reply": reply if reply else "I'm here to help with the MedAssist website."
+    })
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-
     app.run(debug=True)
