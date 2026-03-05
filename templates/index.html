@@ -1,148 +1,503 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>MedAssist AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .input-wrapper { position: relative; }
-        .autocomplete-list {
-            position: absolute;
-            background: white;
-            border: 1px solid #ccc;
-            width: 100%;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 999;
-            border-radius: 6px;
-        }
-        .autocomplete-item {
-            padding: 8px;
-            cursor: pointer;
-        }
-        .autocomplete-item:hover {
-            background: #f0f0f0;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>MedAssist AI</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+font-family: "Segoe UI", Arial, sans-serif;
+background: linear-gradient(135deg,#eef5ff,#f7fbff);
+margin:0;
+min-height:100vh;
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+/* HERO */
+
+.hero{
+text-align:center;
+margin-top:80px;
+}
+
+.hero h1{
+font-size:38px;
+font-weight:700;
+margin-bottom:6px;
+}
+
+.hero p{
+color:#5c6b7a;
+font-size:16px;
+}
+
+/* CARD */
+
+.container{
+margin-top:40px;
+width:100%;
+display:flex;
+justify-content:center;
+}
+
+.form-card{
+
+width:650px;
+
+background:white;
+
+padding:35px;
+
+border-radius:18px;
+
+box-shadow:0 12px 40px rgba(0,0,0,0.08);
+
+}
+
+/* INPUTS */
+
+.form-card h2{
+margin-bottom:18px;
+font-size:20px;
+}
+
+.input-wrapper{
+position:relative;
+margin-bottom:14px;
+}
+
+input, textarea, select{
+
+width:100%;
+
+padding:12px;
+
+border-radius:10px;
+
+border:1px solid #ddd;
+
+font-size:14px;
+
+}
+
+textarea{
+height:70px;
+resize:none;
+}
+
+select{
+width:150px;
+}
+
+/* BUTTON */
+
+button{
+
+background:#2b7cff;
+
+border:none;
+
+color:white;
+
+padding:12px 18px;
+
+border-radius:10px;
+
+font-weight:600;
+
+cursor:pointer;
+
+transition:.2s;
+
+}
+
+button:hover{
+background:#1f66d8;
+}
+
+/* AUTOCOMPLETE */
+
+.autocomplete-list{
+
+position:absolute;
+
+background:white;
+
+border:1px solid #ddd;
+
+width:100%;
+
+max-height:180px;
+
+overflow-y:auto;
+
+border-radius:8px;
+
+z-index:999;
+
+}
+
+.autocomplete-item{
+
+padding:10px;
+
+cursor:pointer;
+
+}
+
+.autocomplete-item:hover{
+
+background:#f2f6ff;
+
+}
+
+/* CHAT BUTTON */
+
+#chat-bubble{
+
+position:fixed;
+
+bottom:30px;
+
+right:30px;
+
+background:#2b7cff;
+
+color:white;
+
+width:55px;
+
+height:55px;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+border-radius:50%;
+
+font-size:22px;
+
+cursor:pointer;
+
+box-shadow:0 8px 25px rgba(0,0,0,0.2);
+
+}
+
+/* CHAT BOX */
+
+#chat-box{
+
+position:fixed;
+
+bottom:100px;
+
+right:30px;
+
+width:300px;
+
+height:380px;
+
+background:white;
+
+border-radius:16px;
+
+box-shadow:0 10px 30px rgba(0,0,0,0.15);
+
+display:none;
+
+flex-direction:column;
+
+overflow:hidden;
+
+}
+
+.chat-header{
+
+background:#2b7cff;
+
+color:white;
+
+padding:12px;
+
+font-weight:600;
+
+}
+
+.chat-body{
+
+flex:1;
+
+padding:10px;
+
+overflow-y:auto;
+
+}
+
+.bot-msg{
+
+background:#eef2ff;
+
+padding:8px 12px;
+
+border-radius:10px;
+
+margin-bottom:6px;
+
+max-width:85%;
+
+}
+
+.user-msg{
+
+background:#2b7cff;
+
+color:white;
+
+padding:8px 12px;
+
+border-radius:10px;
+
+margin-bottom:6px;
+
+margin-left:auto;
+
+max-width:85%;
+
+}
+
+.chat-input{
+
+display:flex;
+
+border-top:1px solid #eee;
+
+}
+
+.chat-input input{
+
+flex:1;
+
+border:none;
+
+padding:10px;
+
+}
+
+.chat-input button{
+
+border-radius:0;
+
+}
+
+</style>
 </head>
 
 <body>
 
-<div class="top-actions">
-    <button id="darkToggle">🌙</button>
+<!-- HERO -->
+
+<div class="hero">
+
+<h1>🩺 MedAssist AI</h1>
+
+<p>Your Intelligent Community Health Assistant</p>
+
 </div>
 
-<section class="hero fade-in">
-    <h1>🩺 MedAssist AI</h1>
-    <p>Your Community Health Companion</p>
-</section>
+<!-- FORM -->
 
-<div class="container slide-up">
-    <form id="healthForm" class="card form-card">
-        <h2>Describe Your Health Issue</h2>
+<div class="container">
 
-        <!-- CITY AUTOCOMPLETE -->
-        <div class="input-wrapper">
-            <input type="text" id="cityInput" name="city" placeholder="Enter your city">
-            <div id="autocompleteResults" class="autocomplete-list"></div>
-        </div>
+<form id="healthForm" class="form-card">
 
-        <textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
+<h2>Describe Your Health Issue</h2>
 
-        <select name="language">
-            <option value="en-US">English</option>
-            <option value="hi-IN">Hindi</option>
-            <option value="te-IN">Telugu</option>
-            <option value="ta-IN">Tamil</option>
-        </select>
+<div class="input-wrapper">
 
-        <button type="submit">🔍 Get Guidance</button>
-    </form>
+<input type="text" id="cityInput" name="city" placeholder="Enter your city">
+
+<div id="autocompleteResults" class="autocomplete-list"></div>
+
+</div>
+
+<textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
+
+<br><br>
+
+<select name="language">
+
+<option value="en-US">English</option>
+
+<option value="hi-IN">Hindi</option>
+
+<option value="te-IN">Telugu</option>
+
+<option value="ta-IN">Tamil</option>
+
+</select>
+
+<button type="submit">🔍 Get Guidance</button>
+
+</form>
+
 </div>
 
 <!-- CHAT -->
+
 <div id="chat-bubble">💬</div>
+
 <div id="chat-box">
-    <div class="chat-header">MedAssist Assistant</div>
-    <div class="chat-body" id="chat-body">
-        <div class="bot-msg">Hi 👋 Ask me about your health results.</div>
-    </div>
-    <div class="chat-input">
-        <input type="text" id="chat-input" placeholder="Ask something...">
-        <button onclick="sendMessage()">➤</button>
-    </div>
+
+<div class="chat-header">
+
+MedAssist Assistant
+
+</div>
+
+<div class="chat-body" id="chat-body">
+
+<div class="bot-msg">
+
+Hi 👋 Ask me anything about this website or your health results.
+
+</div>
+
+</div>
+
+<div class="chat-input">
+
+<input type="text" id="chat-input" placeholder="Ask something...">
+
+<button onclick="sendMessage()">➤</button>
+
+</div>
+
 </div>
 
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
 
 <script>
-let selectedLat = null;
-let selectedLon = null;
 
-const cityInput = document.getElementById("cityInput");
-const resultsBox = document.getElementById("autocompleteResults");
+let selectedLat=null
+let selectedLon=null
 
-// AUTOCOMPLETE
-cityInput.addEventListener("input", function () {
-    const query = this.value.trim();
-    selectedLat = null;
-    selectedLon = null;
-    resultsBox.innerHTML = "";
+const cityInput=document.getElementById("cityInput")
+const resultsBox=document.getElementById("autocompleteResults")
 
-    if (query.length < 3) return;
+cityInput.addEventListener("input",function(){
 
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
-        .then(res => res.json())
-        .then(data => {
-            data.forEach(place => {
-                const div = document.createElement("div");
-                div.className = "autocomplete-item";
-                div.innerText = place.display_name;
-                div.onclick = () => {
-                    cityInput.value = place.display_name;
-                    selectedLat = place.lat;
-                    selectedLon = place.lon;
-                    resultsBox.innerHTML = "";
-                };
-                resultsBox.appendChild(div);
-            });
-        });
-});
+const query=this.value.trim()
 
-// GPS
-function getUserLocation(callback) {
-    if (!navigator.geolocation) return callback(null);
-    navigator.geolocation.getCurrentPosition(
-        pos => callback({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        () => callback(null)
-    );
+selectedLat=null
+selectedLon=null
+
+resultsBox.innerHTML=""
+
+if(query.length<3) return
+
+fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
+
+.then(res=>res.json())
+
+.then(data=>{
+
+data.forEach(place=>{
+
+const div=document.createElement("div")
+
+div.className="autocomplete-item"
+
+div.innerText=place.display_name
+
+div.onclick=()=>{
+
+cityInput.value=place.display_name
+
+selectedLat=place.lat
+
+selectedLon=place.lon
+
+resultsBox.innerHTML=""
+
 }
 
-// FORM SUBMIT
-document.getElementById("healthForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
+resultsBox.appendChild(div)
 
-    if (selectedLat && selectedLon) {
-        formData.append("lat", selectedLat);
-        formData.append("lon", selectedLon);
-        submitForm(formData);
-    } else {
-        getUserLocation(loc => {
-            if (loc) {
-                formData.append("lat", loc.lat);
-                formData.append("lon", loc.lon);
-            }
-            submitForm(formData);
-        });
-    }
-});
+})
 
-function submitForm(formData) {
-    fetch("/analyze", { method: "POST", body: formData })
-        .then(res => res.text())
-        .then(html => document.body.innerHTML = html);
+})
+
+})
+
+function getUserLocation(callback){
+
+if(!navigator.geolocation) return callback(null)
+
+navigator.geolocation.getCurrentPosition(
+
+pos=>callback({lat:pos.coords.latitude,lon:pos.coords.longitude}),
+
+()=>callback(null)
+
+)
+
 }
+
+document.getElementById("healthForm").addEventListener("submit",function(e){
+
+e.preventDefault()
+
+const formData=new FormData(e.target)
+
+if(selectedLat && selectedLon){
+
+formData.append("lat",selectedLat)
+
+formData.append("lon",selectedLon)
+
+submitForm(formData)
+
+}
+
+else{
+
+getUserLocation(loc=>{
+
+if(loc){
+
+formData.append("lat",loc.lat)
+
+formData.append("lon",loc.lon)
+
+}
+
+submitForm(formData)
+
+})
+
+}
+
+})
+
+function submitForm(formData){
+
+fetch("/analyze",{method:"POST",body:formData})
+
+.then(res=>res.text())
+
+.then(html=>document.body.innerHTML=html)
+
+}
+
 </script>
 
 </body>
