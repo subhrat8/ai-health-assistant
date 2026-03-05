@@ -4,74 +4,107 @@
 <meta charset="UTF-8">
 <title>MedAssist AI</title>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
 <style>
 
-body{
-font-family: "Segoe UI", Arial, sans-serif;
-background: linear-gradient(135deg,#eef5ff,#f7fbff);
-margin:0;
-min-height:100vh;
-display:flex;
-flex-direction:column;
-align-items:center;
+*{
+box-sizing:border-box;
 }
+
+body{
+
+font-family: "Segoe UI", Arial, sans-serif;
+
+margin:0;
+
+min-height:100vh;
+
+display:flex;
+
+flex-direction:column;
+
+align-items:center;
+
+background: linear-gradient(-45deg,#eaf3ff,#f4f9ff,#eef5ff,#e9f2ff);
+
+background-size:400% 400%;
+
+animation: gradientBG 12s ease infinite;
+
+}
+
+@keyframes gradientBG{
+
+0%{background-position:0% 50%}
+50%{background-position:100% 50%}
+100%{background-position:0% 50%}
+
+}
+
 
 /* HERO */
 
 .hero{
+
 text-align:center;
-margin-top:80px;
+
+margin-top:90px;
+
 }
 
 .hero h1{
-font-size:38px;
+
+font-size:42px;
+
+margin-bottom:8px;
+
 font-weight:700;
-margin-bottom:6px;
+
 }
 
 .hero p{
+
 color:#5c6b7a;
+
 font-size:16px;
+
 }
+
 
 /* CARD */
 
 .container{
+
 margin-top:40px;
+
 width:100%;
+
 display:flex;
+
 justify-content:center;
+
 }
 
 .form-card{
 
 width:650px;
 
-background:white;
-
 padding:35px;
 
-border-radius:18px;
+border-radius:20px;
 
-box-shadow:0 12px 40px rgba(0,0,0,0.08);
+background:rgba(255,255,255,0.7);
+
+backdrop-filter:blur(15px);
+
+box-shadow:0 20px 50px rgba(0,0,0,0.08);
 
 }
 
 /* INPUTS */
-
-.form-card h2{
-margin-bottom:18px;
-font-size:20px;
-}
-
-.input-wrapper{
-position:relative;
-margin-bottom:14px;
-}
 
 input, textarea, select{
 
@@ -88,12 +121,11 @@ font-size:14px;
 }
 
 textarea{
-height:70px;
-resize:none;
-}
 
-select{
-width:150px;
+height:80px;
+
+resize:none;
+
 }
 
 /* BUTTON */
@@ -106,7 +138,7 @@ border:none;
 
 color:white;
 
-padding:12px 18px;
+padding:12px 20px;
 
 border-radius:10px;
 
@@ -114,13 +146,53 @@ font-weight:600;
 
 cursor:pointer;
 
-transition:.2s;
+transition:.25s;
 
 }
 
 button:hover{
-background:#1f66d8;
+
+background:#1d63d6;
+
+transform:translateY(-1px);
+
 }
+
+
+/* SYMPTOM SUGGESTIONS */
+
+.suggestions{
+
+margin-top:12px;
+
+display:flex;
+
+flex-wrap:wrap;
+
+gap:8px;
+
+}
+
+.chip{
+
+background:#eef3ff;
+
+padding:6px 12px;
+
+border-radius:20px;
+
+font-size:13px;
+
+cursor:pointer;
+
+}
+
+.chip:hover{
+
+background:#dfe9ff;
+
+}
+
 
 /* AUTOCOMPLETE */
 
@@ -158,6 +230,15 @@ background:#f2f6ff;
 
 }
 
+.input-wrapper{
+
+position:relative;
+
+margin-bottom:12px;
+
+}
+
+
 /* CHAT BUTTON */
 
 #chat-bubble{
@@ -172,9 +253,9 @@ background:#2b7cff;
 
 color:white;
 
-width:55px;
+width:60px;
 
-height:55px;
+height:60px;
 
 display:flex;
 
@@ -188,9 +269,10 @@ font-size:22px;
 
 cursor:pointer;
 
-box-shadow:0 8px 25px rgba(0,0,0,0.2);
+box-shadow:0 10px 25px rgba(0,0,0,0.25);
 
 }
+
 
 /* CHAT BOX */
 
@@ -198,19 +280,19 @@ box-shadow:0 8px 25px rgba(0,0,0,0.2);
 
 position:fixed;
 
-bottom:100px;
+bottom:105px;
 
 right:30px;
 
-width:300px;
+width:320px;
 
-height:380px;
+height:420px;
 
 background:white;
 
 border-radius:16px;
 
-box-shadow:0 10px 30px rgba(0,0,0,0.15);
+box-shadow:0 10px 35px rgba(0,0,0,0.2);
 
 display:none;
 
@@ -250,7 +332,7 @@ padding:8px 12px;
 
 border-radius:10px;
 
-margin-bottom:6px;
+margin-bottom:8px;
 
 max-width:85%;
 
@@ -266,7 +348,7 @@ padding:8px 12px;
 
 border-radius:10px;
 
-margin-bottom:6px;
+margin-bottom:8px;
 
 margin-left:auto;
 
@@ -298,12 +380,52 @@ border-radius:0;
 
 }
 
+
+/* LOADING */
+
+.loader{
+
+display:none;
+
+text-align:center;
+
+margin-top:15px;
+
+}
+
+.loader span{
+
+width:8px;
+
+height:8px;
+
+margin:2px;
+
+background:#2b7cff;
+
+border-radius:50%;
+
+display:inline-block;
+
+animation:bounce 1s infinite;
+
+}
+
+.loader span:nth-child(2){animation-delay:.2s}
+.loader span:nth-child(3){animation-delay:.4s}
+
+@keyframes bounce{
+
+0%,100%{transform:translateY(0)}
+50%{transform:translateY(-6px)}
+
+}
+
 </style>
 </head>
 
 <body>
 
-<!-- HERO -->
 
 <div class="hero">
 
@@ -313,7 +435,6 @@ border-radius:0;
 
 </div>
 
-<!-- FORM -->
 
 <div class="container">
 
@@ -329,9 +450,24 @@ border-radius:0;
 
 </div>
 
-<textarea name="symptoms" placeholder="Describe your symptoms..." required></textarea>
+<textarea id="symptomBox" name="symptoms" placeholder="Describe your symptoms..." required></textarea>
 
-<br><br>
+
+<div class="suggestions">
+
+<div class="chip">Headache</div>
+
+<div class="chip">Fever</div>
+
+<div class="chip">Cough</div>
+
+<div class="chip">Stomach Pain</div>
+
+<div class="chip">Fatigue</div>
+
+</div>
+
+<br>
 
 <select name="language">
 
@@ -347,27 +483,28 @@ border-radius:0;
 
 <button type="submit">🔍 Get Guidance</button>
 
+<div class="loader" id="loader">
+
+<span></span><span></span><span></span>
+
+</div>
+
 </form>
 
 </div>
 
-<!-- CHAT -->
 
 <div id="chat-bubble">💬</div>
 
 <div id="chat-box">
 
-<div class="chat-header">
-
-MedAssist Assistant
-
-</div>
+<div class="chat-header">MedAssist Assistant</div>
 
 <div class="chat-body" id="chat-body">
 
 <div class="bot-msg">
 
-Hi 👋 Ask me anything about this website or your health results.
+Hi 👋 I can help explain symptoms or guide you through this website.
 
 </div>
 
@@ -383,120 +520,27 @@ Hi 👋 Ask me anything about this website or your health results.
 
 </div>
 
+
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
 
 <script>
 
-let selectedLat=null
-let selectedLon=null
+document.querySelectorAll(".chip").forEach(chip=>{
 
-const cityInput=document.getElementById("cityInput")
-const resultsBox=document.getElementById("autocompleteResults")
+chip.onclick=()=>{
 
-cityInput.addEventListener("input",function(){
-
-const query=this.value.trim()
-
-selectedLat=null
-selectedLon=null
-
-resultsBox.innerHTML=""
-
-if(query.length<3) return
-
-fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
-
-.then(res=>res.json())
-
-.then(data=>{
-
-data.forEach(place=>{
-
-const div=document.createElement("div")
-
-div.className="autocomplete-item"
-
-div.innerText=place.display_name
-
-div.onclick=()=>{
-
-cityInput.value=place.display_name
-
-selectedLat=place.lat
-
-selectedLon=place.lon
-
-resultsBox.innerHTML=""
-
-}
-
-resultsBox.appendChild(div)
-
-})
-
-})
-
-})
-
-function getUserLocation(callback){
-
-if(!navigator.geolocation) return callback(null)
-
-navigator.geolocation.getCurrentPosition(
-
-pos=>callback({lat:pos.coords.latitude,lon:pos.coords.longitude}),
-
-()=>callback(null)
-
-)
-
-}
-
-document.getElementById("healthForm").addEventListener("submit",function(e){
-
-e.preventDefault()
-
-const formData=new FormData(e.target)
-
-if(selectedLat && selectedLon){
-
-formData.append("lat",selectedLat)
-
-formData.append("lon",selectedLon)
-
-submitForm(formData)
-
-}
-
-else{
-
-getUserLocation(loc=>{
-
-if(loc){
-
-formData.append("lat",loc.lat)
-
-formData.append("lon",loc.lon)
-
-}
-
-submitForm(formData)
-
-})
+document.getElementById("symptomBox").value=chip.innerText
 
 }
 
 })
 
-function submitForm(formData){
 
-fetch("/analyze",{method:"POST",body:formData})
+document.getElementById("healthForm").addEventListener("submit",function(){
 
-.then(res=>res.text())
+document.getElementById("loader").style.display="block"
 
-.then(html=>document.body.innerHTML=html)
-
-}
+})
 
 </script>
 
