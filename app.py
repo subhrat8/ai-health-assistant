@@ -11,7 +11,6 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
-
 # ---------------- DISTANCE ----------------
 def distance(lat1, lon1, lat2, lon2):
 
@@ -98,7 +97,6 @@ def ai_response(prompt):
 
         response = model.generate_content(prompt)
 
-        # Extract text safely
         if response and hasattr(response, "candidates"):
 
             text_parts = []
@@ -112,13 +110,12 @@ def ai_response(prompt):
                 return " ".join(text_parts).strip()
 
     except Exception as e:
-
         print("AI ERROR:", e)
 
     return None
 
 
-# ---------------- HOME ----------------
+# ---------------- HOME PAGE ----------------
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -215,11 +212,9 @@ What to Avoid:
         if current and line.strip():
             sections[current] += line + "<br>"
 
-
     hospitals = get_nearby_medical_places(lat, lon, city)
 
     hospitals = sorted(hospitals, key=lambda x: x["distance"])[:7]
-
 
     return render_template(
         "result.html",
@@ -237,52 +232,78 @@ def chat():
 
     data = request.get_json()
 
-    message = data.get("message", "").strip()
+    message = data.get("message","").strip()
 
-    if not message:
-        return jsonify({"reply": "Please type a question."})
+    healthData = data.get("healthData")
+    hospitals = data.get("hospitals")
+
+    context = ""
+
+    if healthData:
+
+        context += f"""
+User Health Result:
+
+Health Insight:
+{healthData.get('insight')}
+
+Possible Causes:
+{healthData.get('causes')}
+
+What Helps:
+{healthData.get('helps')}
+
+What to Avoid:
+{healthData.get('avoid')}
+"""
+
+    if hospitals:
+
+        context += "\nNearby Hospitals:\n"
+
+        for h in hospitals:
+            context += f"{h['name']} (Rating {h['rating']}, {h['distance']} km away)\n"
+
 
     prompt = f"""
 You are MedAssist Assistant.
 
-MedAssist is an AI health website.
+MedAssist is an AI health website that analyzes symptoms
+and shows nearby hospitals.
 
-Users can:
-• Enter symptoms
-• Enter their city
-• Receive health guidance
-• See nearby hospitals
+Current result context:
+{context}
 
-Help users understand how to use the website and answer simple health questions.
-
-User message:
+User question:
 {message}
 
-Respond in a friendly conversational tone.
+Answer the question naturally and helpfully.
 """
 
     reply = ai_response(prompt)
 
     if not reply:
 
-        # Smart fallback
         m = message.lower()
 
-        if "hospital" in m:
-            reply = "After you enter symptoms and your city, MedAssist recommends nearby hospitals sorted by distance."
+        if "closest" in m:
+            reply = "The closest hospital is the one with the lowest distance in the list."
 
-        elif "symptom" in m:
-            reply = "You can describe your symptoms in the form and MedAssist will generate guidance and precautions."
+        elif "best" in m or "rating" in m:
+            reply = "The hospital with the highest rating may be the best option."
 
-        elif "website" in m:
-            reply = "MedAssist is an AI health assistant that analyzes symptoms and helps you find nearby hospitals."
+        elif "hospital" in m:
+            reply = "You can choose a nearby hospital based on distance or rating."
+
+        elif "insight" in m:
+            reply = "The health insight explains what your symptoms may indicate."
 
         else:
-            reply = "You can ask me about symptoms, hospitals, or how to use this website."
+            reply = "I can help explain your health result or help you choose a hospital."
 
     return jsonify({"reply": reply})
 
 
-# ---------------- RUN ----------------
+# ---------------- RUN SERVER ----------------
 if __name__ == "__main__":
     app.run(debug=True)
