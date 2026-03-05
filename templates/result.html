@@ -6,24 +6,37 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
 <style>
-.card { margin-bottom: 18px; }
-.hospital {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:14px;
-    border-bottom:1px solid #eee;
+
+.card{
+margin-bottom:20px;
 }
-.h-left { line-height:1.6; }
-.h-right { display:flex; gap:10px; }
-.btn {
-    background:#0b5ed7;
-    color:#fff;
-    padding:8px 14px;
-    border-radius:8px;
-    text-decoration:none;
-    font-size:14px;
+
+.hospital{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:14px;
+border-bottom:1px solid #eee;
 }
+
+.h-left{
+line-height:1.6;
+}
+
+.h-right{
+display:flex;
+gap:10px;
+}
+
+.btn{
+background:#0b5ed7;
+color:white;
+padding:8px 14px;
+border-radius:8px;
+text-decoration:none;
+font-size:14px;
+}
+
 </style>
 </head>
 
@@ -31,67 +44,106 @@
 
 <div class="container">
 
-<!-- AI GUIDANCE -->
 <div class="card">
-<h2>🤖 AI Health Guidance</h2>
-<p>{{ health }}</p>
+<h2>🧠 Health Insight</h2>
+<p>{{ insight|safe }}</p>
 </div>
 
-<!-- PRECAUTIONS -->
 <div class="card">
-<h2>⚠️ What to Avoid / Precautions</h2>
-<p>{{ precautions }}</p>
+<h2>⚠️ Possible Causes</h2>
+<p>{{ causes|safe }}</p>
 </div>
 
-<!-- SORT -->
 <div class="card">
+<h2>✅ What Helps</h2>
+<p>{{ helps|safe }}</p>
+</div>
+
+<div class="card">
+<h2>🚫 What to Avoid</h2>
+<p>{{ avoid|safe }}</p>
+</div>
+
+
+<div class="card">
+
 <strong>Sort by:</strong>
+
 <select id="sortSelect">
+
 <option value="distance">Distance</option>
+
 <option value="rating">Rating</option>
+
 </select>
+
 </div>
 
-<!-- HOSPITALS -->
+
 <div id="places-container">
+
 {% for p in medical_places %}
+
 <div class="hospital"
-     data-distance="{{ p.distance }}"
-     data-rating="{{ p.rating }}">
+data-distance="{{ p.distance }}"
+data-rating="{{ p.rating }}">
 
-    <div class="h-left">
-        <strong>{{ p.name }}</strong><br>
-        {{ p.specialty }}<br>
-        ⭐ {{ p.rating }} / 5<br>
-        📏 {{ p.distance }} km away
-    </div>
+<div class="h-left">
 
-    <div class="h-right">
-        <a class="btn" href="{{ p.map }}" target="_blank">🗺 Map</a>
-        <a class="btn" href="{{ p.booking }}" target="_blank">📅 Book</a>
-    </div>
+<strong>{{ p.name }}</strong><br>
+
+{{ p.specialty }}<br>
+
+⭐ {{ p.rating }} / 5<br>
+
+📏 {{ p.distance }} km away
+
 </div>
+
+<div class="h-right">
+
+<a class="btn" href="{{ p.map }}" target="_blank">🗺 Map</a>
+
+<a class="btn" href="{{ p.booking }}" target="_blank">📅 Book</a>
+
+</div>
+
+</div>
+
 {% endfor %}
+
 </div>
+
 
 <a href="/">🔁 Search Again</a>
 
 </div>
 
+
 <script>
-document.getElementById("sortSelect").addEventListener("change", () => {
-    const container = document.getElementById("places-container");
-    const cards = Array.from(container.children);
-    const mode = sortSelect.value;
 
-    cards.sort((a, b) => {
-        if (mode === "distance")
-            return a.dataset.distance - b.dataset.distance;
-        return b.dataset.rating - a.dataset.rating;
-    });
+document.getElementById("sortSelect").addEventListener("change",()=>{
 
-    cards.forEach(c => container.appendChild(c));
-});
+const container=document.getElementById("places-container")
+
+const cards=Array.from(container.children)
+
+const mode=sortSelect.value
+
+cards.sort((a,b)=>{
+
+if(mode==="distance")
+
+return a.dataset.distance-b.dataset.distance
+
+return b.dataset.rating-a.dataset.rating
+
+})
+
+cards.forEach(c=>container.appendChild(c))
+
+})
+
 </script>
 
 </body>
