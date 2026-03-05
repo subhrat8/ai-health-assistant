@@ -16,88 +16,60 @@ box-sizing:border-box;
 
 body{
 
-font-family: "Segoe UI", Arial, sans-serif;
-
+font-family:"Segoe UI",Arial,sans-serif;
 margin:0;
-
 min-height:100vh;
-
 display:flex;
-
 flex-direction:column;
-
 align-items:center;
 
-background: linear-gradient(-45deg,#eaf3ff,#f4f9ff,#eef5ff,#e9f2ff);
-
+background:linear-gradient(-45deg,#eaf3ff,#f4f9ff,#eef5ff,#e9f2ff);
 background-size:400% 400%;
-
-animation: gradientBG 12s ease infinite;
+animation:gradientBG 12s ease infinite;
 
 }
 
 @keyframes gradientBG{
-
 0%{background-position:0% 50%}
 50%{background-position:100% 50%}
 100%{background-position:0% 50%}
-
 }
-
 
 /* HERO */
 
 .hero{
-
 text-align:center;
-
 margin-top:90px;
-
 }
 
 .hero h1{
-
 font-size:42px;
-
 margin-bottom:8px;
-
 font-weight:700;
-
 }
 
 .hero p{
-
 color:#5c6b7a;
-
 font-size:16px;
-
 }
-
 
 /* CARD */
 
 .container{
-
 margin-top:40px;
-
 width:100%;
-
 display:flex;
-
 justify-content:center;
-
 }
 
 .form-card{
 
 width:650px;
-
 padding:35px;
 
 border-radius:20px;
 
 background:rgba(255,255,255,0.7);
-
 backdrop-filter:blur(15px);
 
 box-shadow:0 20px 50px rgba(0,0,0,0.08);
@@ -109,7 +81,6 @@ box-shadow:0 20px 50px rgba(0,0,0,0.08);
 input, textarea, select{
 
 width:100%;
-
 padding:12px;
 
 border-radius:10px;
@@ -121,11 +92,8 @@ font-size:14px;
 }
 
 textarea{
-
 height:80px;
-
 resize:none;
-
 }
 
 /* BUTTON */
@@ -133,9 +101,7 @@ resize:none;
 button{
 
 background:#2b7cff;
-
 border:none;
-
 color:white;
 
 padding:12px 20px;
@@ -143,7 +109,6 @@ padding:12px 20px;
 border-radius:10px;
 
 font-weight:600;
-
 cursor:pointer;
 
 transition:.25s;
@@ -151,26 +116,17 @@ transition:.25s;
 }
 
 button:hover{
-
 background:#1d63d6;
-
 transform:translateY(-1px);
-
 }
 
-
-/* SYMPTOM SUGGESTIONS */
+/* SYMPTOM CHIPS */
 
 .suggestions{
-
 margin-top:12px;
-
 display:flex;
-
 flex-wrap:wrap;
-
 gap:8px;
-
 }
 
 .chip{
@@ -188,13 +144,15 @@ cursor:pointer;
 }
 
 .chip:hover{
-
 background:#dfe9ff;
-
 }
 
-
 /* AUTOCOMPLETE */
+
+.input-wrapper{
+position:relative;
+margin-bottom:12px;
+}
 
 .autocomplete-list{
 
@@ -217,27 +175,46 @@ z-index:999;
 }
 
 .autocomplete-item{
-
 padding:10px;
-
 cursor:pointer;
-
 }
 
 .autocomplete-item:hover{
-
 background:#f2f6ff;
+}
+
+/* LOADING */
+
+.loader{
+display:none;
+text-align:center;
+margin-top:15px;
+}
+
+.loader span{
+
+width:8px;
+height:8px;
+
+margin:2px;
+
+background:#2b7cff;
+
+border-radius:50%;
+
+display:inline-block;
+
+animation:bounce 1s infinite;
 
 }
 
-.input-wrapper{
+.loader span:nth-child(2){animation-delay:.2s}
+.loader span:nth-child(3){animation-delay:.4s}
 
-position:relative;
-
-margin-bottom:12px;
-
+@keyframes bounce{
+0%,100%{transform:translateY(0)}
+50%{transform:translateY(-6px)}
 }
-
 
 /* CHAT BUTTON */
 
@@ -246,7 +223,6 @@ margin-bottom:12px;
 position:fixed;
 
 bottom:30px;
-
 right:30px;
 
 background:#2b7cff;
@@ -254,13 +230,10 @@ background:#2b7cff;
 color:white;
 
 width:60px;
-
 height:60px;
 
 display:flex;
-
 align-items:center;
-
 justify-content:center;
 
 border-radius:50%;
@@ -273,7 +246,6 @@ box-shadow:0 10px 25px rgba(0,0,0,0.25);
 
 }
 
-
 /* CHAT BOX */
 
 #chat-box{
@@ -281,11 +253,9 @@ box-shadow:0 10px 25px rgba(0,0,0,0.25);
 position:fixed;
 
 bottom:105px;
-
 right:30px;
 
 width:320px;
-
 height:420px;
 
 background:white;
@@ -315,13 +285,9 @@ font-weight:600;
 }
 
 .chat-body{
-
 flex:1;
-
 padding:10px;
-
 overflow-y:auto;
-
 }
 
 .bot-msg{
@@ -365,60 +331,13 @@ border-top:1px solid #eee;
 }
 
 .chat-input input{
-
 flex:1;
-
 border:none;
-
 padding:10px;
-
 }
 
 .chat-input button{
-
 border-radius:0;
-
-}
-
-
-/* LOADING */
-
-.loader{
-
-display:none;
-
-text-align:center;
-
-margin-top:15px;
-
-}
-
-.loader span{
-
-width:8px;
-
-height:8px;
-
-margin:2px;
-
-background:#2b7cff;
-
-border-radius:50%;
-
-display:inline-block;
-
-animation:bounce 1s infinite;
-
-}
-
-.loader span:nth-child(2){animation-delay:.2s}
-.loader span:nth-child(3){animation-delay:.4s}
-
-@keyframes bounce{
-
-0%,100%{transform:translateY(0)}
-50%{transform:translateY(-6px)}
-
 }
 
 </style>
@@ -426,13 +345,9 @@ animation:bounce 1s infinite;
 
 <body>
 
-
 <div class="hero">
-
 <h1>🩺 MedAssist AI</h1>
-
 <p>Your Intelligent Community Health Assistant</p>
-
 </div>
 
 
@@ -456,13 +371,9 @@ animation:bounce 1s infinite;
 <div class="suggestions">
 
 <div class="chip">Headache</div>
-
 <div class="chip">Fever</div>
-
 <div class="chip">Cough</div>
-
 <div class="chip">Stomach Pain</div>
-
 <div class="chip">Fatigue</div>
 
 </div>
@@ -472,21 +383,18 @@ animation:bounce 1s infinite;
 <select name="language">
 
 <option value="en-US">English</option>
-
 <option value="hi-IN">Hindi</option>
-
 <option value="te-IN">Telugu</option>
-
 <option value="ta-IN">Tamil</option>
 
 </select>
 
+<br><br>
+
 <button type="submit">🔍 Get Guidance</button>
 
 <div class="loader" id="loader">
-
 <span></span><span></span><span></span>
-
 </div>
 
 </form>
@@ -503,9 +411,7 @@ animation:bounce 1s infinite;
 <div class="chat-body" id="chat-body">
 
 <div class="bot-msg">
-
 Hi 👋 I can help explain symptoms or guide you through this website.
-
 </div>
 
 </div>
@@ -525,22 +431,133 @@ Hi 👋 I can help explain symptoms or guide you through this website.
 
 <script>
 
+/* CHIP CLICK */
+
 document.querySelectorAll(".chip").forEach(chip=>{
-
 chip.onclick=()=>{
-
 document.getElementById("symptomBox").value=chip.innerText
+}
+})
+
+
+let selectedLat=null
+let selectedLon=null
+
+const cityInput=document.getElementById("cityInput")
+const resultsBox=document.getElementById("autocompleteResults")
+
+/* AUTOCOMPLETE */
+
+cityInput.addEventListener("input",function(){
+
+const query=this.value.trim()
+
+selectedLat=null
+selectedLon=null
+
+resultsBox.innerHTML=""
+
+if(query.length<3) return
+
+fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5`)
+.then(res=>res.json())
+.then(data=>{
+
+data.forEach(place=>{
+
+const div=document.createElement("div")
+
+div.className="autocomplete-item"
+
+div.innerText=place.display_name
+
+div.onclick=()=>{
+
+cityInput.value=place.display_name
+
+selectedLat=place.lat
+selectedLon=place.lon
+
+resultsBox.innerHTML=""
+
+}
+
+resultsBox.appendChild(div)
+
+})
+
+})
+
+})
+
+/* GPS */
+
+function getUserLocation(callback){
+
+if(!navigator.geolocation) return callback(null)
+
+navigator.geolocation.getCurrentPosition(
+
+pos=>callback({
+lat:pos.coords.latitude,
+lon:pos.coords.longitude
+}),
+
+()=>callback(null)
+
+)
+
+}
+
+/* FORM SUBMIT */
+
+document.getElementById("healthForm").addEventListener("submit",function(e){
+
+e.preventDefault()
+
+document.getElementById("loader").style.display="block"
+
+const formData=new FormData(e.target)
+
+if(selectedLat && selectedLon){
+
+formData.append("lat",selectedLat)
+formData.append("lon",selectedLon)
+
+submitForm(formData)
+
+}
+
+else{
+
+getUserLocation(loc=>{
+
+if(loc){
+
+formData.append("lat",loc.lat)
+formData.append("lon",loc.lon)
+
+}
+
+submitForm(formData)
+
+})
 
 }
 
 })
 
+function submitForm(formData){
 
-document.getElementById("healthForm").addEventListener("submit",function(){
-
-document.getElementById("loader").style.display="block"
-
+fetch("/analyze",{method:"POST",body:formData})
+.then(res=>res.text())
+.then(html=>{
+document.open()
+document.write(html)
+document.close()
 })
+
+}
 
 </script>
 
