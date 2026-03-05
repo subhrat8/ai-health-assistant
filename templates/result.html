@@ -64,21 +64,15 @@ font-size:14px;
 <p>{{ avoid|safe }}</p>
 </div>
 
-
 <div class="card">
-
 <strong>Sort by:</strong>
 
 <select id="sortSelect">
-
 <option value="distance">Distance</option>
-
 <option value="rating">Rating</option>
-
 </select>
 
 </div>
-
 
 <div id="places-container">
 
@@ -86,7 +80,8 @@ font-size:14px;
 
 <div class="hospital"
 data-distance="{{ p.distance }}"
-data-rating="{{ p.rating }}">
+data-rating="{{ p.rating }}"
+data-name="{{ p.name }}">
 
 <div class="h-left">
 
@@ -114,11 +109,61 @@ data-rating="{{ p.rating }}">
 
 </div>
 
-
 <a href="/">🔁 Search Again</a>
 
 </div>
 
+<!-- SEND RESULT DATA TO ASSISTANT -->
+<script>
+
+window.healthData = {
+
+insight: `{{ insight|safe }}`,
+causes: `{{ causes|safe }}`,
+helps: `{{ helps|safe }}`,
+avoid: `{{ avoid|safe }}`
+
+};
+
+window.hospitals = [
+
+{% for p in medical_places %}
+
+{
+name:`{{ p.name }}`,
+rating:`{{ p.rating }}`,
+distance:`{{ p.distance }}`
+},
+
+{% endfor %}
+
+];
+
+</script>
+
+<!-- CHAT UI -->
+<div id="chat-bubble">💬</div>
+
+<div id="chat-box">
+
+<div class="chat-header">MedAssist Assistant</div>
+
+<div class="chat-body" id="chat-body">
+
+<div class="bot-msg">
+I can explain your health result or help you choose a hospital.
+</div>
+
+</div>
+
+<div class="chat-input">
+<input type="text" id="chat-input" placeholder="Ask something...">
+<button onclick="sendMessage()">➤</button>
+</div>
+
+</div>
+
+<script src="{{ url_for('static', filename='assistant.js') }}"></script>
 
 <script>
 
@@ -133,7 +178,6 @@ const mode=sortSelect.value
 cards.sort((a,b)=>{
 
 if(mode==="distance")
-
 return a.dataset.distance-b.dataset.distance
 
 return b.dataset.rating-a.dataset.rating
