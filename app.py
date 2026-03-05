@@ -11,9 +11,12 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 if API_KEY:
     genai.configure(api_key=API_KEY)
 
+
 # ---------------- DISTANCE ----------------
 def distance(lat1, lon1, lat2, lon2):
+
     R = 6371
+
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
 
@@ -67,6 +70,7 @@ def get_nearby_medical_places(lat, lon, city):
     results = []
 
     for e in r.json().get("elements", []):
+
         tags = e.get("tags", {})
         name = tags.get("name")
 
@@ -94,11 +98,22 @@ def ai_response(prompt):
 
         response = model.generate_content(prompt)
 
-        if response and response.text:
-            return response.text.strip()
+        # Extract text safely
+        if response and hasattr(response, "candidates"):
+
+            text_parts = []
+
+            for part in response.candidates[0].content.parts:
+
+                if hasattr(part, "text"):
+                    text_parts.append(part.text)
+
+            if text_parts:
+                return " ".join(text_parts).strip()
 
     except Exception as e:
-        print("AI error:", e)
+
+        print("AI ERROR:", e)
 
     return None
 
@@ -205,6 +220,7 @@ What to Avoid:
 
     hospitals = sorted(hospitals, key=lambda x: x["distance"])[:7]
 
+
     return render_template(
         "result.html",
         insight=sections["insight"],
@@ -221,33 +237,50 @@ def chat():
 
     data = request.get_json()
 
-    message = data.get("message", "")
+    message = data.get("message", "").strip()
 
     if not message:
-        return jsonify({"reply": "Please ask something."})
+        return jsonify({"reply": "Please type a question."})
 
     prompt = f"""
 You are MedAssist Assistant.
 
-MedAssist is a health website where users:
+MedAssist is an AI health website.
+
+Users can:
 • Enter symptoms
 • Enter their city
 • Receive health guidance
 • See nearby hospitals
 
-Your job is to help users understand the website.
+Help users understand how to use the website and answer simple health questions.
 
-User question:
+User message:
 {message}
 
-Reply in a friendly short way.
+Respond in a friendly conversational tone.
 """
 
     reply = ai_response(prompt)
 
-    return jsonify({
-        "reply": reply if reply else "I'm here to help with the MedAssist website."
-    })
+    if not reply:
+
+        # Smart fallback
+        m = message.lower()
+
+        if "hospital" in m:
+            reply = "After you enter symptoms and your city, MedAssist recommends nearby hospitals sorted by distance."
+
+        elif "symptom" in m:
+            reply = "You can describe your symptoms in the form and MedAssist will generate guidance and precautions."
+
+        elif "website" in m:
+            reply = "MedAssist is an AI health assistant that analyzes symptoms and helps you find nearby hospitals."
+
+        else:
+            reply = "You can ask me about symptoms, hospitals, or how to use this website."
+
+    return jsonify({"reply": reply})
 
 
 # ---------------- RUN ----------------
