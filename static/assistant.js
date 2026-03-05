@@ -1,71 +1,58 @@
-// ================= SPEECH =================
-let synth = window.speechSynthesis;
+const bubble = document.getElementById("chat-bubble")
+const box = document.getElementById("chat-box")
+const input = document.getElementById("chat-input")
+const chatBody = document.getElementById("chat-body")
 
-function speak(text) {
-    if (!text) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.95;
-    u.pitch = 1;
-    synth.speak(u);
+bubble.onclick = () => {
+
+    box.style.display =
+        box.style.display === "flex" ? "none" : "flex"
 }
 
-// ================= DARK MODE =================
-const darkToggle = document.getElementById("dark-toggle") || document.getElementById("darkToggle");
-if (darkToggle) {
-    darkToggle.onclick = () => {
-        document.body.classList.toggle("dark");
-        localStorage.setItem("dark", document.body.classList.contains("dark"));
-    };
-    if (localStorage.getItem("dark") === "true") {
-        document.body.classList.add("dark");
-    }
-}
+function sendMessage(){
 
-// ================= CHAT =================
-const bubble = document.getElementById("chat-bubble");
-const box = document.getElementById("chat-box");
-const body = document.getElementById("chat-body");
-const input = document.getElementById("chat-input");
+    const message = input.value.trim()
 
-if (bubble) bubble.onclick = () => box.classList.toggle("open");
+    if(!message) return
 
-function addMsg(text, type) {
-    const d = document.createElement("div");
-    d.className = type === "user" ? "user-msg" : "bot-msg";
-    d.innerText = text;
-    body.appendChild(d);
-    body.scrollTop = body.scrollHeight;
-    if (type === "bot") speak(text);
-}
+    addUserMessage(message)
 
-// ENTER key support
-if (input) {
-    input.addEventListener("keydown", e => {
-        if (e.key === "Enter") sendMessage();
-    });
-}
+    input.value = ""
 
-function sendMessage() {
-    const t = input.value.trim();
-    if (!t) return;
-
-    addMsg(t, "user");
-    input.value = "";
-
-    // ✅ Health context (from result page)
-    const healthText =
-        document.getElementById("assistant-text")?.innerText || "";
-
-    fetch("/chat", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            message: t,
-            health: healthText
-        })
+    fetch("/chat",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({message:message})
     })
-    .then(r => r.json())
-    .then(d => addMsg(d.reply, "bot"))
-    .catch(() => addMsg("I’m having trouble responding right now.", "bot"));
+    .then(res=>res.json())
+    .then(data=>{
+        addBotMessage(data.reply)
+    })
+}
+
+function addUserMessage(msg){
+
+    const div = document.createElement("div")
+
+    div.className = "user-msg"
+
+    div.innerText = msg
+
+    chatBody.appendChild(div)
+
+}
+
+function addBotMessage(msg){
+
+    const div = document.createElement("div")
+
+    div.className = "bot-msg"
+
+    div.innerText = msg
+
+    chatBody.appendChild(div)
+
+    chatBody.scrollTop = chatBody.scrollHeight
 }
