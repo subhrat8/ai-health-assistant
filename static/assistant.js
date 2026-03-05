@@ -1,16 +1,31 @@
+document.addEventListener("DOMContentLoaded", function () {
+
 const bubble = document.getElementById("chat-bubble")
 const box = document.getElementById("chat-box")
 const input = document.getElementById("chat-input")
 const chatBody = document.getElementById("chat-body")
 
-bubble.onclick = () => {
+/* If chat elements do not exist, stop */
+if (!bubble || !box || !input || !chatBody) return
 
-box.style.display =
-box.style.display === "flex" ? "none" : "flex"
 
+/* ---------------- CHAT TOGGLE ---------------- */
+
+bubble.addEventListener("click", function(){
+
+if(box.style.display === "flex"){
+box.style.display = "none"
+}
+else{
+box.style.display = "flex"
 }
 
-function sendMessage(){
+})
+
+
+/* ---------------- SEND MESSAGE ---------------- */
+
+window.sendMessage = function(){
 
 const message = input.value.trim()
 
@@ -20,7 +35,7 @@ addUserMessage(message)
 
 input.value = ""
 
-fetch("/chat",{
+fetch("/chat", {
 
 method:"POST",
 
@@ -33,22 +48,30 @@ body:JSON.stringify({
 message:message,
 
 healthData:window.healthData || null,
-
 hospitals:window.hospitals || null
 
 })
 
 })
 
-.then(res=>res.json())
+.then(res => res.json())
 
-.then(data=>{
+.then(data => {
 
 addBotMessage(data.reply)
 
 })
 
+.catch(err => {
+
+addBotMessage("Sorry, I couldn't reach the assistant.")
+
+})
+
 }
+
+
+/* ---------------- USER MESSAGE ---------------- */
 
 function addUserMessage(msg){
 
@@ -60,7 +83,12 @@ div.innerText = msg
 
 chatBody.appendChild(div)
 
+chatBody.scrollTop = chatBody.scrollHeight
+
 }
+
+
+/* ---------------- BOT MESSAGE ---------------- */
 
 function addBotMessage(msg){
 
@@ -75,3 +103,16 @@ chatBody.appendChild(div)
 chatBody.scrollTop = chatBody.scrollHeight
 
 }
+
+
+/* ---------------- ENTER KEY SEND ---------------- */
+
+input.addEventListener("keypress", function(e){
+
+if(e.key === "Enter"){
+sendMessage()
+}
+
+})
+
+})
