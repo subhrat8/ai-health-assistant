@@ -2,21 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MedAssist AI – Result</title>
+<title>MedAssist Result</title>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
 <style>
 
-.card{
-margin-bottom:20px;
+body{
+font-family:"Segoe UI",Arial;
+background:#f4f8ff;
+margin:0;
+padding:40px;
 }
+
+.container{
+max-width:900px;
+margin:auto;
+}
+
+/* CARDS */
+
+.card{
+background:white;
+padding:20px;
+border-radius:14px;
+box-shadow:0 6px 20px rgba(0,0,0,0.06);
+margin-bottom:20px;
+animation:fadeUp .5s ease;
+}
+
+@keyframes fadeUp{
+from{
+opacity:0;
+transform:translateY(20px);
+}
+to{
+opacity:1;
+transform:translateY(0);
+}
+}
+
+.card h2{
+margin-top:0;
+color:#2b7cff;
+}
+
+/* HOSPITAL LIST */
 
 .hospital{
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:14px;
+padding:16px;
 border-bottom:1px solid #eee;
+transition:.2s;
+}
+
+.hospital:hover{
+background:#f6f9ff;
 }
 
 .h-left{
@@ -29,12 +72,141 @@ gap:10px;
 }
 
 .btn{
-background:#0b5ed7;
+background:#2b7cff;
 color:white;
 padding:8px 14px;
 border-radius:8px;
 text-decoration:none;
 font-size:14px;
+}
+
+.btn:hover{
+background:#1e63d6;
+}
+
+/* SORT */
+
+.sort-box{
+margin-bottom:20px;
+}
+
+/* CHAT */
+
+#chat-bubble{
+
+position:fixed;
+
+bottom:30px;
+right:30px;
+
+background:#2b7cff;
+
+color:white;
+
+width:60px;
+height:60px;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
+border-radius:50%;
+
+font-size:22px;
+
+cursor:pointer;
+
+box-shadow:0 10px 25px rgba(0,0,0,0.25);
+
+}
+
+#chat-box{
+
+position:fixed;
+
+bottom:105px;
+right:30px;
+
+width:320px;
+height:420px;
+
+background:white;
+
+border-radius:16px;
+
+box-shadow:0 10px 35px rgba(0,0,0,0.2);
+
+display:none;
+
+flex-direction:column;
+
+overflow:hidden;
+
+}
+
+.chat-header{
+
+background:#2b7cff;
+
+color:white;
+
+padding:12px;
+
+font-weight:600;
+
+}
+
+.chat-body{
+flex:1;
+padding:10px;
+overflow-y:auto;
+}
+
+.bot-msg{
+
+background:#eef2ff;
+
+padding:8px 12px;
+
+border-radius:10px;
+
+margin-bottom:8px;
+
+max-width:85%;
+
+}
+
+.user-msg{
+
+background:#2b7cff;
+
+color:white;
+
+padding:8px 12px;
+
+border-radius:10px;
+
+margin-bottom:8px;
+
+margin-left:auto;
+
+max-width:85%;
+
+}
+
+.chat-input{
+display:flex;
+border-top:1px solid #eee;
+}
+
+.chat-input input{
+flex:1;
+border:none;
+padding:10px;
+}
+
+.chat-input button{
+border-radius:0;
 }
 
 </style>
@@ -50,7 +222,7 @@ font-size:14px;
 </div>
 
 <div class="card">
-<h2>⚠️ Possible Causes</h2>
+<h2>⚠ Possible Causes</h2>
 <p>{{ causes|safe }}</p>
 </div>
 
@@ -64,7 +236,8 @@ font-size:14px;
 <p>{{ avoid|safe }}</p>
 </div>
 
-<div class="card">
+<div class="card sort-box">
+
 <strong>Sort by:</strong>
 
 <select id="sortSelect">
@@ -74,14 +247,17 @@ font-size:14px;
 
 </div>
 
+<div class="card">
+
+<h2>🏥 Nearby Hospitals</h2>
+
 <div id="places-container">
 
 {% for p in medical_places %}
 
 <div class="hospital"
 data-distance="{{ p.distance }}"
-data-rating="{{ p.rating }}"
-data-name="{{ p.name }}">
+data-rating="{{ p.rating }}">
 
 <div class="h-left">
 
@@ -109,61 +285,57 @@ data-name="{{ p.name }}">
 
 </div>
 
+</div>
+
 <a href="/">🔁 Search Again</a>
 
 </div>
 
-<!-- SEND RESULT DATA TO ASSISTANT -->
+
+<!-- PASS RESULT DATA TO ASSISTANT -->
+
 <script>
 
-window.healthData = {
-
-insight: `{{ insight|safe }}`,
-causes: `{{ causes|safe }}`,
-helps: `{{ helps|safe }}`,
-avoid: `{{ avoid|safe }}`
-
-};
-
-window.hospitals = [
-
-{% for p in medical_places %}
-
-{
-name:`{{ p.name }}`,
-rating:`{{ p.rating }}`,
-distance:`{{ p.distance }}`
-},
-
-{% endfor %}
-
-];
+window.healthData={
+insight:`{{ insight|safe }}`,
+causes:`{{ causes|safe }}`,
+helps:`{{ helps|safe }}`,
+avoid:`{{ avoid|safe }}`
+}
 
 </script>
 
-<!-- CHAT UI -->
+
+<!-- CHAT -->
+
 <div id="chat-bubble">💬</div>
 
 <div id="chat-box">
 
-<div class="chat-header">MedAssist Assistant</div>
+<div class="chat-header">
+MedAssist Assistant
+</div>
 
 <div class="chat-body" id="chat-body">
 
 <div class="bot-msg">
-I can explain your health result or help you choose a hospital.
+I can explain your health result or help choose a hospital.
 </div>
 
 </div>
 
 <div class="chat-input">
+
 <input type="text" id="chat-input" placeholder="Ask something...">
+
 <button onclick="sendMessage()">➤</button>
+
 </div>
 
 </div>
 
 <script src="{{ url_for('static', filename='assistant.js') }}"></script>
+
 
 <script>
 
